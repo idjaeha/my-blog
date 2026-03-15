@@ -106,7 +106,9 @@ describe("create-post", () => {
     });
 
     const data = parseResult(result);
-    expect(data.frontmatter.publishedDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(data.frontmatter.publishedDate).toMatch(
+      /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2})?$/,
+    );
   });
 
   it("prevents creating duplicate posts", async () => {

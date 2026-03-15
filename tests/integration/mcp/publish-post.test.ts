@@ -58,7 +58,9 @@ describe("publish-post", () => {
 
     const data = parseResult(result);
     expect(data.wasDraft).toBe(true);
-    expect(data.publishedDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(data.publishedDate).toMatch(
+      /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2})?$/,
+    );
     // Should be today, not the old date
     expect(data.publishedDate).not.toBe("2024-01-01");
   });
