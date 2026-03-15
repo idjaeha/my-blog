@@ -7,7 +7,7 @@ export async function GET() {
     subtitle: SITE.description,
   });
 
-  return new Response(png, {
+  return new Response(png as unknown as BodyInit, {
     headers: { "Content-Type": "image/png" },
   });
 }

@@ -128,7 +128,7 @@ export async function generateOgImage(options: {
         },
         children,
       },
-    },
+    } as unknown as React.ReactNode,
     {
       width: 1200,
       height: 630,

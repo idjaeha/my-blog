@@ -1,4 +1,5 @@
-import type { APIContext, InferGetStaticPathsType } from "astro";
+import type { APIContext } from "astro";
+import type { Locale } from "@/i18n";
 import { contentService } from "@/lib/content";
 import { CATEGORIES } from "@/lib/constants";
 import { generateOgImage } from "@/lib/og";
@@ -12,8 +13,8 @@ export async function getStaticPaths() {
     params: { slug: `blog/${post.slug}` },
     props: {
       title: post.title,
-      category: post.category,
-      locale: "ko" as const,
+      category: post.category as keyof typeof CATEGORIES,
+      locale: "ko" as Locale,
     },
   }));
 
@@ -21,20 +22,23 @@ export async function getStaticPaths() {
     params: { slug: `en/blog/${post.slug}` },
     props: {
       title: post.title,
-      category: post.category,
-      locale: "en" as const,
+      category: post.category as keyof typeof CATEGORIES,
+      locale: "en" as Locale,
     },
   }));
 
   return [...koPaths, ...enPaths];
 }
 
-type Props = InferGetStaticPathsType<typeof getStaticPaths>["props"];
+interface Props {
+  title: string;
+  category: keyof typeof CATEGORIES;
+  locale: Locale;
+}
 
 export async function GET(context: APIContext) {
   const { title, category, locale } = context.props as Props;
-  const categoryLabel =
-    CATEGORIES[category as keyof typeof CATEGORIES]?.[locale] ?? category;
+  const categoryLabel = CATEGORIES[category]?.[locale] ?? category;
 
   const png = await generateOgImage({
     title,
@@ -42,7 +46,7 @@ export async function GET(context: APIContext) {
     subtitle: SITE.author,
   });
 
-  return new Response(png, {
+  return new Response(png as unknown as BodyInit, {
     headers: { "Content-Type": "image/png" },
   });
 }

@@ -66,6 +66,7 @@
     "@vitest/ui": "^4.1.0",
     "eslint": "^10.0.3",
     "eslint-plugin-astro": "^1.6.0",
+    "gray-matter": "^4.0.3",
     "happy-dom": "^20.8.4",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
