@@ -1,0 +1,194 @@
+---
+title: "블로그 개발일지 #2 — 세 가지 버그와 정적 사이트의 함정"
+description: "모바일 메뉴 렌더링 깨짐, 카테고리 필터 미동작, 하드코딩된 카테고리 목록까지 — Astro 정적 블로그에서 만난 세 가지 버그를 해결한 과정을 기록한다."
+category: "retrospective"
+tags: ["claude-code", "ai", "astro", "blog", "debugging"]
+publishedDate: 2026-03-15
+draft: false
+series: "블로그 개발일지"
+seriesOrder: 2
+---
+
+import Callout from "@/components/mdx/Callout";
+import LinkCard from "@/components/mdx/LinkCard";
+
+[1편](/blog/building-blog-with-ai)에서 블로그의 뼈대를 완성했다. 이번 글에서는 실제로 사용하면서 발견한 세 가지 버그를 수정한 과정을 기록한다. 각각은 사소해 보였지만, 정적 사이트 생성(SSG)의 특성과 CSS 상속의 함정이 얽혀 있어 원인을 찾기까지 몇 번의 시행착오가 필요했다.
+
+## Bug 1: 카테고리 목록이 하드코딩되어 있다
+
+카테고리 필터에 포스트가 하나도 없는 카테고리가 표시되고 있었다. 원인은 단순했다.
+
+```typescript
+// astro-loader.ts — Before
+async getAllCategories(): Promise<string[]> {
+  return ["til", "retrospective", "article", "tutorial"];
+}
+```
+
+배열이 하드코딩되어 있었다. 실제 포스트에서 카테고리를 추출하도록 변경했다.
+
+```typescript
+// astro-loader.ts — After
+async getAllCategories(locale: string = "ko"): Promise<string[]> {
+  const posts = await this.getAllPosts(locale);
+  const categories = new Set(posts.map((p) => p.category));
+  return [...categories].sort();
+}
+```
+
+`CategoryFilter.astro`도 `CATEGORIES` 상수 전체를 순회하는 대신, 이 메서드를 호출하여 실제 포스트가 있는 카테고리만 렌더링하도록 수정했다. 가장 단순한 버그였지만, 다음 두 버그의 기반이 되는 수정이었다.
+
+## Bug 2: 카테고리를 클릭해도 필터링되지 않는다
+
+카테고리 버튼을 클릭하면 URL에 `?category=til`이 추가되지만, 포스트 목록은 전혀 변하지 않았다.
+
+### 첫 번째 시도 — 서버 사이드 필터링 (실패)
+
+처음에는 Astro의 서버 사이드에서 쿼리 파라미터를 읽어 필터링하려고 했다.
+
+```typescript
+// blog/index.astro — 이렇게 하면 될 줄 알았다
+const category = Astro.url.searchParams.get("category");
+const allPosts = category
+  ? await contentService.getPostsByCategory(category, locale)
+  : await contentService.getAllPosts(locale);
+```
+
+코드는 깔끔했지만 **전혀 동작하지 않았다.** 이유는 `astro.config.ts`에 있었다.
+
+```typescript
+export default defineConfig({
+  output: "static", // ← 이것
+});
+```
+
+`output: "static"`은 빌드 타임에 모든 페이지를 HTML로 생성한다. 즉 `Astro.url.searchParams`는 빌드 타임에 항상 빈 값이다. 런타임에 사용자가 어떤 쿼리 파라미터를 보내든, 이미 생성된 정적 HTML이 응답된다.
+
+<Callout type="warning" title="정적 사이트에서의 쿼리 파라미터">
+  `output: "static"`일 때 `Astro.url.searchParams`는 빌드 타임에만 평가된다.
+  쿼리 파라미터 기반 필터링이 필요하다면 클라이언트 사이드 JS로 구현하거나,
+  `output: "server"` 또는 `"hybrid"`로 변경해야 한다.
+</Callout>
+
+### 두 번째 시도 — 클라이언트 사이드 필터링 (성공)
+
+정적 빌드를 유지하면서 필터링을 구현하려면 클라이언트 JavaScript가 필요하다. 접근 방식은 이렇다.
+
+1. `PostList.astro`에서 각 포스트 카드를 `<div data-category={post.category}>`로 감싼다
+2. `CategoryFilter.astro`에 `<script>`를 추가하여 클릭 시 DOM 필터링을 수행한다
+3. URL은 `history.replaceState`로 동기화하여 새로고침 시에도 필터 상태가 유지된다
+
+```typescript
+// CategoryFilter.astro <script>
+buttons.forEach((btn) => {
+  btn.addEventListener("click", (e) => {
+    e.preventDefault(); // 페이지 이동 방지
+    setActive(btn.dataset.category ?? "all");
+  });
+});
+
+// 초기 로드 시 URL에서 카테고리 복원
+const initialCategory =
+  new URL(window.location.href).searchParams.get("category") ?? "all";
+setActive(initialCategory);
+```
+
+모든 포스트가 HTML에 포함되어 있으므로 **페이지 로딩 없이 즉시** 필터링된다. SEO 관점에서도 모든 포스트가 크롤링 가능하다는 장점이 있다.
+
+## Bug 3: 모바일 메뉴가 투명하게 보인다
+
+모바일 햄버거 메뉴를 열면 슬라이드 패널이 나타나야 하는데, 본문 콘텐츠가 패널을 통해 비쳐 보여서 읽을 수 없는 상태였다. 이 버그는 원인을 찾기까지 가장 많은 시행착오를 겪었다.
+
+### 원인 1 — 애니메이션 라이브러리 호환 문제
+
+원래 코드는 `tw-animate-css`의 `animate-in slide-in-from-right` 클래스를 사용하고 있었다. 하지만 이 라이브러리는 `data-open:animate-in` 같은 조건부 형태로 동작하도록 설계되어 있어, React의 조건부 렌더링(`{open && ...}`)으로 마운트/언마운트하면 제대로 동작하지 않았다.
+
+이 부분은 Tailwind의 `transition-transform`으로 직접 구현하여 해결했다.
+
+```tsx
+const [open, setOpen] = useState(false); // 트랜지션 상태
+const [visible, setVisible] = useState(false); // DOM 마운트 여부
+
+<nav
+  className={cn(
+    "transition-transform duration-200 ease-out",
+    open ? "translate-x-0" : "translate-x-full",
+  )}
+/>;
+```
+
+### 원인 2 — CSS 상속의 함정
+
+애니메이션을 고쳤는데도 **패널이 여전히 투명**했다. `bg-background`가 적용되어 있고, CSS 변수 `--background`는 불투명한 `oklch(1 0 0)`(흰색)인데도 말이다.
+
+문제는 패널이 렌더링되는 위치에 있었다. `MobileNav` 컴포넌트는 Header의 slot으로 들어가므로, 오버레이와 패널이 **Header DOM 내부**에서 렌더링된다.
+
+```html
+<!-- Header -->
+<header
+  class="bg-background/95 supports-[backdrop-filter]:bg-background/60 backdrop-blur-sm"
+>
+  <!-- ... -->
+  <div class="md:hidden">
+    <!-- MobileNav가 여기에 렌더링됨 -->
+    <!-- fixed 패널도 Header의 자식 -->
+    <div class="bg-background fixed z-50 ...">
+      <!-- bg-background가 적용되어 있지만,
+           부모의 backdrop-blur + bg-background/60이
+           이 요소에도 영향을 미침 -->
+    </div>
+  </div>
+</header>
+```
+
+`fixed` 포지셔닝은 요소를 뷰포트 기준으로 배치하지만, **CSS 상속과 stacking context는 여전히 DOM 트리를 따른다.** Header의 `backdrop-blur-sm`이 새로운 stacking context를 생성하고, 그 안의 모든 자식 요소에 블러와 반투명 효과가 적용된 것이다.
+
+<Callout type="tip" title="교훈: fixed 요소도 부모의 영향을 받는다">
+  `position: fixed`는 레이아웃 위치만 뷰포트 기준으로 변경할 뿐, CSS 상속과
+  stacking context는 DOM 트리 구조를 따른다. 모달이나 오버레이처럼 부모
+  컨텍스트에서 완전히 독립해야 하는 요소는 React Portal로 `document.body`에 직접
+  렌더링해야 한다.
+</Callout>
+
+### 해결 — React Portal
+
+`createPortal`로 오버레이와 패널을 `<body>` 직접 자식으로 렌더링하여, Header의 CSS 효과에서 완전히 독립시켰다.
+
+```tsx
+import { createPortal } from "react-dom";
+
+{
+  visible &&
+    createPortal(
+      <>
+        <div className="fixed inset-0 z-50 bg-black/40 ..." />
+        <nav className="bg-background fixed inset-y-0 right-0 z-50 w-64 ...">
+          {/* 메뉴 내용 */}
+        </nav>
+      </>,
+      document.body,
+    );
+}
+```
+
+이제 패널은 Header와 무관한 stacking context에서 렌더링되므로, `bg-background`가 의도대로 불투명하게 동작한다.
+
+## 오늘의 회고
+
+### 정적 사이트의 멘탈 모델
+
+가장 큰 배움은 **"이 코드가 언제 실행되는가"를 항상 의식해야 한다**는 것이다. Astro의 프론트매터(`---` 블록)는 빌드 타임에 실행되고, `<script>` 태그는 런타임에 실행된다. 같은 `.astro` 파일 안에 있지만 실행 시점이 다르다. 카테고리 필터 버그는 이 차이를 간과해서 발생했다.
+
+### CSS 디버깅은 위치가 핵심이다
+
+모바일 메뉴 버그에서 가장 많은 시간을 쓴 건 "왜 `bg-background`가 투명한가"였다. CSS 속성값만 보면 문제가 없었다. **요소가 DOM 트리의 어디에 위치하는지**, 부모의 어떤 속성이 stacking context를 생성하는지를 파악해야 비로소 원인이 보였다.
+
+### AI와 디버깅할 때
+
+Claude Code와 디버깅하면서 느낀 점은, **증상을 정확히 전달하는 것**이 중요하다는 것이다. "안 돼요"보다 "패널이 투명하게 보여요"가, 그보다 "패널의 bg-background가 적용되었는데도 본문이 비쳐 보여요"가 더 정확한 진단으로 이어졌다. 결국 세 번째 시도에서 `createPortal` 해결책에 도달했다.
+
+<LinkCard
+  href="/blog/building-blog-with-ai"
+  title="블로그 개발일지 #1"
+  description="Claude Code로 하루 만에 블로그 만들기"
+/>
