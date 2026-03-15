@@ -1,4 +1,4 @@
-# ID001 Dev Blog
+# 재하의 개발 블로그
 
 Astro 6 + React 19 + Tailwind CSS 4 기반의 개인 기술 블로그.
 

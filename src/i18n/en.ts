@@ -21,7 +21,7 @@ const en: Record<string, string> = {
   "blog.next": "Next",
   "blog.page": "Page",
   "about.title": "About",
-  "about.description": "About ID001",
+  "about.description": "About Jaeha",
   "search.placeholder": "Search...",
   "search.noResults": "No results found.",
   "blog.share": "Share",

@@ -1,8 +1,8 @@
 export const SITE = {
-  title: "ID001 Dev Blog",
-  description: "ID001의 개발 블로그 - TIL, 프로젝트 회고, 기술 아티클",
+  title: "재하의 개발 블로그",
+  description: "재하의 개발 블로그 - TIL, 프로젝트 회고, 기술 아티클",
   url: "https://my-blog.site",
-  author: "ID001",
+  author: "재하",
   defaultLocale: "ko" as const,
 } as const;
 
