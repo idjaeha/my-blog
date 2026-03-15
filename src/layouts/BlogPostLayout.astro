@@ -4,6 +4,7 @@ import { type Locale, t } from "@/i18n";
 import { CATEGORIES, SITE } from "@/lib/constants";
 import { formatDate, getReadingTime } from "@/lib/utils";
 import TableOfContents from "@/components/islands/TableOfContents";
+import ShareButton from "@/components/islands/ShareButton";
 
 interface Props {
   frontmatter: {
@@ -65,34 +66,42 @@ const jsonLd = {
         <div
           class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground"
         >
-          <span>{categoryLabel}</span>
-          <span aria-hidden="true">&middot;</span>
-          <time datetime={pubDate.toISOString()}>
-            {t("blog.publishedOn", locale)}
-            {formatDate(pubDate, locale)}
-          </time>
-          {
-            updatedDate && (
-              <>
-                <span aria-hidden="true">&middot;</span>
-                <time datetime={updatedDate.toISOString()}>
-                  {t("blog.updatedOn", locale)}{" "}
-                  {formatDate(updatedDate, locale)}
-                </time>
-              </>
-            )
-          }
-          {
-            readingTime && (
-              <>
-                <span aria-hidden="true">&middot;</span>
-                <span>
-                  {readingTime}
-                  {t("blog.minuteRead", locale)}
-                </span>
-              </>
-            )
-          }
+          <div class="flex flex-1 flex-wrap items-center gap-2">
+            <span>{categoryLabel}</span>
+            <span aria-hidden="true">&middot;</span>
+            <time datetime={pubDate.toISOString()}>
+              {t("blog.publishedOn", locale)}
+              {formatDate(pubDate, locale)}
+            </time>
+            {
+              updatedDate && (
+                <>
+                  <span aria-hidden="true">&middot;</span>
+                  <time datetime={updatedDate.toISOString()}>
+                    {t("blog.updatedOn", locale)}{" "}
+                    {formatDate(updatedDate, locale)}
+                  </time>
+                </>
+              )
+            }
+            {
+              readingTime && (
+                <>
+                  <span aria-hidden="true">&middot;</span>
+                  <span>
+                    {readingTime}
+                    {t("blog.minuteRead", locale)}
+                  </span>
+                </>
+              )
+            }
+          </div>
+          <ShareButton
+            client:idle
+            url={canonicalURL.href}
+            title={frontmatter.title}
+            locale={locale}
+          />
         </div>
 
         <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">
