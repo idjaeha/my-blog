@@ -128,14 +128,14 @@ sequenceDiagram
   participant R as island 런타임 (~1kb)
   participant N as 네트워크
 
-  B->>R: HTML 파싱 중 &lt;astro-island&gt; 태그 발견
+  B->>R: HTML 파싱 중 astro-island 태그 발견
   R->>R: connectedCallback() 호출
   R->>R: client 속성 확인 (load / idle / visible ...)
   R->>N: dynamic import(component-url)
   R->>N: dynamic import(renderer-url)
   N-->>R: JS 번들 응답
   R->>R: props JSON.parse()
-  R->>B: ReactDOM.hydrateRoot(el, &lt;Component {...props} /&gt;)
+  R->>B: hydrateRoot(el, Component)
   Note over B: island 인터랙티브 완료
 ```
 
