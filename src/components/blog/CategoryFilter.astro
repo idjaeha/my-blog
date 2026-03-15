@@ -1,7 +1,6 @@
 ---
 import { type Locale, t, getLocalizedPath } from "@/i18n";
-import { CATEGORIES } from "@/lib/constants";
-import { contentService } from "@/lib/content";
+import CategoryList from "@/components/blog/CategoryList.astro";
 
 interface Props {
   locale: Locale;
@@ -9,19 +8,6 @@ interface Props {
 
 const { locale } = Astro.props;
 const blogPath = getLocalizedPath("/blog", locale);
-
-const activeCategories = await contentService.getAllCategories(locale);
-
-const categories = [
-  { key: "all", label: t("blog.allCategories", locale), href: blogPath },
-  ...activeCategories
-    .filter((key) => key in CATEGORIES)
-    .map((key) => ({
-      key,
-      label: CATEGORIES[key as keyof typeof CATEGORIES][locale],
-      href: `${blogPath}?category=${key}`,
-    })),
-];
 ---
 
 <nav
@@ -29,21 +15,18 @@ const categories = [
   aria-label={t("blog.categories", locale)}
   id="category-filter"
 >
-  {
-    categories.map(({ key, label, href }) => (
-      <a
-        href={href}
-        data-category={key}
-        class:list={[
-          "category-btn rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ]}
-        aria-current={key === "all" ? "page" : undefined}
-      >
-        {label}
-      </a>
-    ))
-  }
+  <a
+    href={blogPath}
+    data-category="all"
+    class:list={[
+      "category-btn rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+      "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+    ]}
+    aria-current="page"
+  >
+    {t("blog.allCategories", locale)}
+  </a>
+  <CategoryList locale={locale} itemClass="category-btn" />
 </nav>
 
 <script>
@@ -75,7 +58,6 @@ const categories = [
         const isActive = btn.dataset.category === category;
         btn.setAttribute("aria-current", isActive ? "page" : "");
 
-        // Remove all variant classes then apply correct ones
         activeClass.split(" ").forEach((c) => btn.classList.remove(c));
         inactiveClass.split(" ").forEach((c) => btn.classList.remove(c));
 

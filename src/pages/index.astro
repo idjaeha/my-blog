@@ -1,8 +1,9 @@
 ---
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import PostList from "@/components/blog/PostList.astro";
+import CategoryList from "@/components/blog/CategoryList.astro";
 import { contentService } from "@/lib/content";
-import { SITE, CATEGORIES } from "@/lib/constants";
+import { SITE } from "@/lib/constants";
 import { t, getLocalizedPath } from "@/i18n";
 import type { Locale } from "@/i18n";
 
@@ -35,18 +36,7 @@ const latestPosts = allPosts.slice(0, 5);
       <h2 class="mb-4 text-2xl font-semibold">
         {t("blog.categories", locale)}
       </h2>
-      <div class="flex flex-wrap gap-3">
-        {
-          Object.entries(CATEGORIES).map(([key, labels]) => (
-            <a
-              href={`${getLocalizedPath("/blog", locale)}?category=${key}`}
-              class="rounded-md bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground transition-colors hover:bg-secondary/80"
-            >
-              {labels[locale]}
-            </a>
-          ))
-        }
-      </div>
+      <CategoryList locale={locale} itemClass="px-4 py-2" />
     </section>
   </section>
 </BaseLayout>

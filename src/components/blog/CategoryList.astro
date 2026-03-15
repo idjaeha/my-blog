@@ -1,0 +1,44 @@
+---
+import { type Locale, getLocalizedPath } from "@/i18n";
+import { CATEGORIES } from "@/lib/constants";
+import { contentService } from "@/lib/content";
+
+interface Props {
+  locale: Locale;
+  class?: string;
+  itemClass?: string;
+}
+
+const { locale, class: className, itemClass } = Astro.props;
+const blogPath = getLocalizedPath("/blog", locale);
+
+const activeCategories = await contentService.getAllCategories(locale);
+
+const categories = activeCategories
+  .filter((key) => key in CATEGORIES)
+  .map((key) => ({
+    key,
+    label: CATEGORIES[key as keyof typeof CATEGORIES][locale],
+    href: `${blogPath}?category=${key}`,
+  }));
+
+export type { Props };
+---
+
+<div class:list={["flex flex-wrap gap-2", className]}>
+  {
+    categories.map(({ key, label, href }) => (
+      <a
+        href={href}
+        data-category={key}
+        class:list={[
+          "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+          itemClass,
+        ]}
+      >
+        {label}
+      </a>
+    ))
+  }
+</div>
