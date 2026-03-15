@@ -22,15 +22,15 @@
 
 ## 2. Tech Stack Rationale
 
-| 기술 | 역할 | 선택 이유 |
-|---|---|---|
-| **Astro** | SSG 프레임워크 | Zero-JS 기본, 아일랜드 아키텍처, Content Collections 내장 |
-| **Vite** | 번들러 | Astro 내장, 빠른 HMR, ES 모듈 기반 |
-| **TypeScript** | 언어 | 타입 안전성 (Zod 스키마, 컴포넌트 Props) |
-| **Tailwind CSS** | 스타일링 | 유틸리티 우선, shadcn/ui 호환, 다크모드 지원 |
-| **shadcn/ui** | 컴포넌트 라이브러리 | 복사-붙여넣기 방식(vendor lock-in 없음), Radix 기반 접근성 |
-| **React Bits** | 애니메이션 | 히어로 섹션, 텍스트 효과 등 인터랙티브 요소 |
-| **Vercel** | 호스팅 | Astro 배포 최적화, 프리뷰 배포, Edge Network |
+| 기술             | 역할                | 선택 이유                                                  |
+| ---------------- | ------------------- | ---------------------------------------------------------- |
+| **Astro**        | SSG 프레임워크      | Zero-JS 기본, 아일랜드 아키텍처, Content Collections 내장  |
+| **Vite**         | 번들러              | Astro 내장, 빠른 HMR, ES 모듈 기반                         |
+| **TypeScript**   | 언어                | 타입 안전성 (Zod 스키마, 컴포넌트 Props)                   |
+| **Tailwind CSS** | 스타일링            | 유틸리티 우선, shadcn/ui 호환, 다크모드 지원               |
+| **shadcn/ui**    | 컴포넌트 라이브러리 | 복사-붙여넣기 방식(vendor lock-in 없음), Radix 기반 접근성 |
+| **React Bits**   | 애니메이션          | 히어로 섹션, 텍스트 효과 등 인터랙티브 요소                |
+| **Vercel**       | 호스팅              | Astro 배포 최적화, 프리뷰 배포, Edge Network               |
 
 ---
 
@@ -58,12 +58,12 @@ Astro의 아일랜드 아키텍처를 활용하여 정적 셸과 인터랙티브
 
 #### 하이드레이션 디렉티브 전략
 
-| 디렉티브 | 사용처 | 이유 |
-|---|---|---|
-| `client:load` | ThemeToggle, 모바일 네비게이션 | 페이지 로드 즉시 인터랙션 필요 |
-| `client:visible` | React Bits 애니메이션 | 뷰포트 진입 시 로드 (성능 최적화) |
-| `client:idle` | TOC, CopyCode 버튼, 검색 모달 | 메인 스레드 여유 시 로드 |
-| No directive | Card, Badge 등 순수 스타일링 shadcn/ui | SSR만으로 충분, JS 불필요 |
+| 디렉티브         | 사용처                                 | 이유                              |
+| ---------------- | -------------------------------------- | --------------------------------- |
+| `client:load`    | ThemeToggle, 모바일 네비게이션         | 페이지 로드 즉시 인터랙션 필요    |
+| `client:visible` | React Bits 애니메이션                  | 뷰포트 진입 시 로드 (성능 최적화) |
+| `client:idle`    | TOC, CopyCode 버튼, 검색 모달          | 메인 스레드 여유 시 로드          |
+| No directive     | Card, Badge 등 순수 스타일링 shadcn/ui | SSR만으로 충분, JS 불필요         |
 
 ### 3.2 Content Abstraction Layer
 
@@ -123,7 +123,10 @@ export class AstroContentLoader implements ContentService {
     return posts.filter((p) => p.tags.includes(tag));
   }
 
-  async getPostsByCategory(category: string, locale: string = "ko"): Promise<Post[]> {
+  async getPostsByCategory(
+    category: string,
+    locale: string = "ko",
+  ): Promise<Post[]> {
     const posts = await this.getAllPosts(locale);
     return posts.filter((p) => p.category === category);
   }
@@ -270,7 +273,10 @@ Claude Code에서 블로그 글을 직접 작성/편집/관리할 수 있도록 
         "properties": {
           "title": { "type": "string", "maxLength": 100 },
           "description": { "type": "string", "maxLength": 300 },
-          "category": { "type": "string", "enum": ["til", "retrospective", "article", "tutorial"] },
+          "category": {
+            "type": "string",
+            "enum": ["til", "retrospective", "article", "tutorial"]
+          },
           "tags": { "type": "array", "items": { "type": "string" } },
           "draft": { "type": "boolean" },
           "coverImage": { "type": "string" },
@@ -296,7 +302,10 @@ Claude Code에서 블로그 글을 직접 작성/편집/관리할 수 있도록 
     "type": "object",
     "properties": {
       "locale": { "type": "string", "enum": ["ko", "en"], "default": "ko" },
-      "category": { "type": "string", "enum": ["til", "retrospective", "article", "tutorial"] },
+      "category": {
+        "type": "string",
+        "enum": ["til", "retrospective", "article", "tutorial"]
+      },
       "tag": { "type": "string" },
       "draft": { "type": "boolean", "description": "Filter by draft status" },
       "limit": { "type": "number", "default": 20 },
@@ -549,12 +558,12 @@ export const collections = { blog };
 
 ### 카테고리 정의
 
-| 카테고리 | 설명 | 예시 |
-|---|---|---|
-| `til` | Today I Learned - 짧은 학습 기록 | 새로 알게 된 API, 트릭 |
-| `retrospective` | 프로젝트 회고 | 프로젝트 후기, 실패/성공 분석 |
-| `article` | 기술 아티클 | 깊이 있는 기술 분석, 비교 |
-| `tutorial` | 튜토리얼 | 단계별 가이드, How-to |
+| 카테고리        | 설명                             | 예시                          |
+| --------------- | -------------------------------- | ----------------------------- |
+| `til`           | Today I Learned - 짧은 학습 기록 | 새로 알게 된 API, 트릭        |
+| `retrospective` | 프로젝트 회고                    | 프로젝트 후기, 실패/성공 분석 |
+| `article`       | 기술 아티클                      | 깊이 있는 기술 분석, 비교     |
+| `tutorial`      | 튜토리얼                         | 단계별 가이드, How-to         |
 
 ### 프론트매터 예시
 
@@ -578,16 +587,16 @@ seriesOrder: 1
 
 ### 라우팅 구조
 
-| Route (ko - 기본) | Route (en) | 설명 |
-|---|---|---|
-| `/` | `/en` | 홈 - 히어로 + 최신 글 + 카테고리 |
-| `/blog` | `/en/blog` | 블로그 목록 (페이지네이션 + 태그 필터) |
-| `/blog/[slug]` | `/en/blog/[slug]` | 포스트 상세 (MDX + TOC + prev/next) |
-| `/blog/tags` | `/en/blog/tags` | 전체 태그 목록 |
-| `/blog/tags/[tag]` | `/en/blog/tags/[tag]` | 태그별 필터링 |
-| `/about` | `/en/about` | 소개 페이지 |
-| `/rss.xml` | `/en/rss.xml` | RSS 피드 |
-| `/og/[...slug].png` | - | 동적 OG 이미지 (빌드 타임) |
+| Route (ko - 기본)   | Route (en)            | 설명                                   |
+| ------------------- | --------------------- | -------------------------------------- |
+| `/`                 | `/en`                 | 홈 - 히어로 + 최신 글 + 카테고리       |
+| `/blog`             | `/en/blog`            | 블로그 목록 (페이지네이션 + 태그 필터) |
+| `/blog/[slug]`      | `/en/blog/[slug]`     | 포스트 상세 (MDX + TOC + prev/next)    |
+| `/blog/tags`        | `/en/blog/tags`       | 전체 태그 목록                         |
+| `/blog/tags/[tag]`  | `/en/blog/tags/[tag]` | 태그별 필터링                          |
+| `/about`            | `/en/about`           | 소개 페이지                            |
+| `/rss.xml`          | `/en/rss.xml`         | RSS 피드                               |
+| `/og/[...slug].png` | -                     | 동적 OG 이미지 (빌드 타임)             |
 
 ### i18n 전략
 
@@ -735,11 +744,14 @@ graph TD
 ```mdx
 import { MermaidDiagram } from "@/components/mdx/MermaidDiagram";
 
-<MermaidDiagram client:visible chart={`
+<MermaidDiagram
+  client:visible
+  chart={`
   sequenceDiagram
     Client->>+Server: POST /api/login
     Server-->>-Client: JWT Token
-`} />
+`}
+/>
 ```
 
 #### Astro 설정 (rehype-mermaid)
@@ -750,9 +762,7 @@ import rehypeMermaid from "rehype-mermaid";
 
 export default defineConfig({
   markdown: {
-    rehypePlugins: [
-      [rehypeMermaid, { strategy: "pre-mermaid" }],
-    ],
+    rehypePlugins: [[rehypeMermaid, { strategy: "pre-mermaid" }]],
   },
 });
 ```
@@ -799,7 +809,12 @@ export function MermaidDiagram({ chart }: Props) {
     });
   }, [chart]);
 
-  return <div ref={containerRef} className="mermaid-diagram my-6 flex justify-center" />;
+  return (
+    <div
+      ref={containerRef}
+      className="mermaid-diagram my-6 flex justify-center"
+    />
+  );
 }
 ```
 
@@ -929,17 +944,47 @@ const ogImageUrl = new URL(image, Astro.site);
 <meta name="twitter:image" content={ogImageUrl} />
 
 <!-- Article metadata -->
-{publishedDate && <meta property="article:published_time" content={publishedDate.toISOString()} />}
-{updatedDate && <meta property="article:modified_time" content={updatedDate.toISOString()} />}
+{
+  publishedDate && (
+    <meta
+      property="article:published_time"
+      content={publishedDate.toISOString()}
+    />
+  )
+}
+{
+  updatedDate && (
+    <meta
+      property="article:modified_time"
+      content={updatedDate.toISOString()}
+    />
+  )
+}
 
 <!-- Alternate language -->
-{alternateLocale && alternatePath && (
-  <link rel="alternate" hreflang={alternateLocale} href={new URL(alternatePath, Astro.site)} />
-)}
+{
+  alternateLocale && alternatePath && (
+    <link
+      rel="alternate"
+      hreflang={alternateLocale}
+      href={new URL(alternatePath, Astro.site)}
+    />
+  )
+}
 
 <!-- RSS -->
-<link rel="alternate" type="application/rss+xml" title="RSS (한국어)" href="/rss.xml" />
-<link rel="alternate" type="application/rss+xml" title="RSS (English)" href="/en/rss.xml" />
+<link
+  rel="alternate"
+  type="application/rss+xml"
+  title="RSS (한국어)"
+  href="/rss.xml"
+/>
+<link
+  rel="alternate"
+  type="application/rss+xml"
+  title="RSS (English)"
+  href="/en/rss.xml"
+/>
 
 <!-- Sitemap -->
 <link rel="sitemap" href="/sitemap-index.xml" />
@@ -949,21 +994,24 @@ const ogImageUrl = new URL(image, Astro.site);
 
 ```astro
 <!-- BlogPosting (포스트 상세 페이지) -->
-<script type="application/ld+json" set:html={JSON.stringify({
-  "@context": "https://schema.org",
-  "@type": "BlogPosting",
-  "headline": post.title,
-  "description": post.description,
-  "datePublished": post.publishedDate.toISOString(),
-  "dateModified": (post.updatedDate ?? post.publishedDate).toISOString(),
-  "author": {
-    "@type": "Person",
-    "name": "Jaeha Yi",
-    "url": Astro.site
-  },
-  "image": ogImageUrl,
-  "mainEntityOfPage": canonicalUrl
-})} />
+<script
+  type="application/ld+json"
+  set:html={JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: post.title,
+    description: post.description,
+    datePublished: post.publishedDate.toISOString(),
+    dateModified: (post.updatedDate ?? post.publishedDate).toISOString(),
+    author: {
+      "@type": "Person",
+      name: "Jaeha Yi",
+      url: Astro.site,
+    },
+    image: ogImageUrl,
+    mainEntityOfPage: canonicalUrl,
+  })}
+/>
 ```
 
 ### RSS 피드
@@ -992,53 +1040,26 @@ export async function GET(context: { site: URL }) {
 
 ### 동적 OG 이미지
 
-`satori` + `sharp`로 빌드 타임에 OG 이미지를 생성한다.
+`satori` + `sharp`로 빌드 타임에 OG 이미지를 생성한다. 1200×630 PNG 형식.
 
-```typescript
-// src/pages/og/[...slug].png.ts
-import { type APIRoute } from "astro";
-import satori from "satori";
-import sharp from "sharp";
-import { contentService } from "@/lib/content";
+#### 이미지 종류
 
-export const GET: APIRoute = async ({ params }) => {
-  const post = await contentService.getPost(params.slug!);
-  if (!post) return new Response("Not found", { status: 404 });
+| 종류      | 경로                  | 내용                                                                       |
+| --------- | --------------------- | -------------------------------------------------------------------------- |
+| 기본 OG   | `/og-default.png`     | 사이트 제목 + 설명. 홈, 소개, 블로그 목록 등 포스트가 아닌 페이지에서 사용 |
+| 포스트 OG | `/og/blog/{slug}.png` | 포스트 제목 + 카테고리 + 사이트명. 빌드 타임에 포스트별 자동 생성          |
 
-  const svg = await satori(
-    {
-      type: "div",
-      props: {
-        children: post.title,
-        style: {
-          width: "1200px",
-          height: "630px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: "48px",
-          fontWeight: "bold",
-          background: "linear-gradient(135deg, #0f172a, #1e293b)",
-          color: "#f8fafc",
-          padding: "60px",
-        },
-      },
-    },
-    { width: 1200, height: 630, fonts: [] }
-  );
+#### 폴백 전략
 
-  const png = await sharp(Buffer.from(svg)).png().toBuffer();
-  return new Response(png, { headers: { "Content-Type": "image/png" } });
-};
+1. 포스트에 `coverImage`가 설정되어 있으면 해당 이미지 사용
+2. `coverImage`가 없으면 자동 생성된 `/og/blog/{slug}.png` 사용
+3. 일반 페이지(홈, 소개 등)는 `/og-default.png` 사용
 
-export async function getStaticPaths() {
-  const posts = await contentService.getAllPosts("ko");
-  const enPosts = await contentService.getAllPosts("en");
-  return [...posts, ...enPosts].map((post) => ({
-    params: { slug: `${post.locale}/${post.slug}` },
-  }));
-}
-```
+`BlogPostLayout`에서 `coverImage`가 없는 경우 자동으로 동적 OG 이미지 경로를 주입한다.
+
+#### 기본 OG 이미지 생성
+
+`src/pages/og-default.png.ts`에서 사이트 제목으로 기본 OG 이미지를 빌드 타임에 생성한다. 포스트 OG와 동일한 디자인 시스템(그라데이션 배경, Inter 폰트)을 공유한다.
 
 ### Sitemap
 
@@ -1215,22 +1236,22 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm tsc --noEmit          # 타입체크
-      - run: pnpm eslint .              # 린트
-      - run: pnpm astro build           # 빌드
+      - run: pnpm tsc --noEmit # 타입체크
+      - run: pnpm eslint . # 린트
+      - run: pnpm astro build # 빌드
 ```
 
 ---
 
 ## 11. Future Considerations (v2+)
 
-| 기능 | 상태 | 비고 |
-|---|---|---|
-| 댓글 시스템 | v2 | giscus (GitHub Discussions 기반) |
-| CMS 마이그레이션 | v2+ | Sanity/Contentful → CMSLoader 구현 |
-| 뉴스레터 | v2+ | Buttondown/Resend 연동 |
-| 조회수/좋아요 | v2+ | Upstash Redis 또는 Vercel KV |
-| 시리즈 네비게이션 UI | v1.1 | series/seriesOrder 기반 |
+| 기능                 | 상태 | 비고                               |
+| -------------------- | ---- | ---------------------------------- |
+| 댓글 시스템          | v2   | giscus (GitHub Discussions 기반)   |
+| CMS 마이그레이션     | v2+  | Sanity/Contentful → CMSLoader 구현 |
+| 뉴스레터             | v2+  | Buttondown/Resend 연동             |
+| 조회수/좋아요        | v2+  | Upstash Redis 또는 Vercel KV       |
+| 시리즈 네비게이션 UI | v1.1 | series/seriesOrder 기반            |
 
 ---
 

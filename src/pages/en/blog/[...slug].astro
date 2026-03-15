@@ -38,7 +38,7 @@ const { Content } = await post.render();
     updatedDate: post.updatedDate?.toISOString(),
     category: post.category,
     tags: post.tags,
-    image: post.coverImage,
+    image: post.coverImage ?? `/og/en/blog/${post.slug}.png`,
     draft: post.draft,
   }}
   locale={locale}
