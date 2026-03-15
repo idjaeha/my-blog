@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -9,8 +10,34 @@ interface MobileNavProps {
 
 export default function MobileNav({ locale, links }: MobileNavProps) {
   const [open, setOpen] = useState(false);
+  const [visible, setVisible] = useState(false);
+  const navRef = useRef<HTMLElement>(null);
 
   const close = useCallback(() => setOpen(false), []);
+
+  useEffect(() => {
+    if (open) {
+      setVisible(true);
+    }
+  }, [open]);
+
+  const handleTransitionEnd = useCallback(() => {
+    if (!open) {
+      setVisible(false);
+    }
+  }, [open]);
+
+  // Lock body scroll when menu is open
+  useEffect(() => {
+    if (visible) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [visible]);
 
   return (
     <>
@@ -39,61 +66,71 @@ export default function MobileNav({ locale, links }: MobileNavProps) {
         </svg>
       </Button>
 
-      {open && (
-        <>
-          {/* Overlay */}
-          <div
-            className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs"
-            onClick={close}
-            aria-hidden="true"
-          />
+      {visible &&
+        createPortal(
+          <>
+            {/* Overlay */}
+            <div
+              className={cn(
+                "fixed inset-0 z-50 bg-black/40 transition-opacity duration-200",
+                open ? "opacity-100" : "opacity-0",
+              )}
+              onClick={close}
+              aria-hidden="true"
+            />
 
-          {/* Slide-out panel */}
-          <nav
-            className="bg-background animate-in slide-in-from-right fixed inset-y-0 right-0 z-50 w-64 shadow-lg duration-200"
-            aria-label="Mobile navigation"
-          >
-            <div className="flex items-center justify-end p-4">
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={close}
-                aria-label="Close navigation menu"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
+            {/* Slide-out panel */}
+            <nav
+              ref={navRef}
+              className={cn(
+                "bg-background border-border fixed inset-y-0 right-0 z-50 w-64 border-l shadow-lg transition-transform duration-200 ease-out",
+                open ? "translate-x-0" : "translate-x-full",
+              )}
+              aria-label="Mobile navigation"
+              onTransitionEnd={handleTransitionEnd}
+            >
+              <div className="flex items-center justify-end p-4">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={close}
+                  aria-label="Close navigation menu"
                 >
-                  <path d="M18 6 6 18" />
-                  <path d="m6 6 12 12" />
-                </svg>
-              </Button>
-            </div>
-
-            <ul className="flex flex-col gap-1 px-4">
-              {links.map((link) => (
-                <li key={link.href}>
-                  <a
-                    href={link.href}
-                    onClick={close}
-                    className="text-foreground hover:bg-muted block rounded-md px-3 py-2 text-sm transition-colors"
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
                   >
-                    {link.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        </>
-      )}
+                    <path d="M18 6 6 18" />
+                    <path d="m6 6 12 12" />
+                  </svg>
+                </Button>
+              </div>
+
+              <ul className="flex flex-col gap-1 px-4">
+                {links.map((link) => (
+                  <li key={link.href}>
+                    <a
+                      href={link.href}
+                      onClick={close}
+                      className="text-foreground hover:bg-muted block rounded-md px-3 py-2 text-sm transition-colors"
+                    >
+                      {link.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          </>,
+          document.body,
+        )}
     </>
   );
 }
