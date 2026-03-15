@@ -2,7 +2,7 @@ import { z } from "zod";
 import { writeFile, access } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import matter from "gray-matter";
-import { nowKST } from "../utils/date";
+import { nowKST } from "../utils/date.js";
 
 export const createPostTool = {
   name: "create-post",

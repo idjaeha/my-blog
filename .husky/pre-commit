@@ -4,3 +4,7 @@ nvm use 2>/dev/null
 
 pnpm exec lint-staged
 pnpm typecheck
+
+if git diff --cached --name-only | grep -q '^mcp-server/src/'; then
+  cd mcp-server && tsc --noEmit
+fi

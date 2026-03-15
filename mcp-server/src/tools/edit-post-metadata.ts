@@ -2,7 +2,7 @@ import { z } from "zod";
 import { readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import matter from "gray-matter";
-import { nowKST, fixFrontmatterDates } from "../utils/date";
+import { nowKST, fixFrontmatterDates } from "../utils/date.js";
 
 export const editPostMetadataTool = {
   name: "edit-post-metadata",
