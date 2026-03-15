@@ -2,6 +2,7 @@ import { z } from "zod";
 import { readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import matter from "gray-matter";
+import { nowKST, fixFrontmatterDates } from "../utils/date";
 
 export const publishPostTool = {
   name: "publish-post",
@@ -21,17 +22,13 @@ export const publishPostTool = {
     try {
       const raw = await readFile(filePath, "utf-8");
       const { data, content } = matter(raw);
+      fixFrontmatterDates(data);
 
       const wasDraft = Boolean(data.draft);
 
       data.draft = false;
       if (wasDraft) {
-        const now = new Date();
-        const kstOffset = 9 * 60;
-        const kst = new Date(
-          now.getTime() + (kstOffset + now.getTimezoneOffset()) * 60000,
-        );
-        data.publishedDate = `${kst.getFullYear()}-${String(kst.getMonth() + 1).padStart(2, "0")}-${String(kst.getDate()).padStart(2, "0")}T${String(kst.getHours()).padStart(2, "0")}:${String(kst.getMinutes()).padStart(2, "0")}:${String(kst.getSeconds()).padStart(2, "0")}+09:00`;
+        data.publishedDate = nowKST();
       }
 
       const fileContent = matter.stringify(content, data);

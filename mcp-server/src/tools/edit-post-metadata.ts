@@ -2,6 +2,7 @@ import { z } from "zod";
 import { readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import matter from "gray-matter";
+import { nowKST, fixFrontmatterDates } from "../utils/date";
 
 export const editPostMetadataTool = {
   name: "edit-post-metadata",
@@ -40,6 +41,7 @@ export const editPostMetadataTool = {
     try {
       const raw = await readFile(filePath, "utf-8");
       const { data, content } = matter(raw);
+      fixFrontmatterDates(data);
 
       // Merge updates into existing frontmatter
       for (const [key, value] of Object.entries(updates)) {
@@ -49,7 +51,7 @@ export const editPostMetadataTool = {
       }
 
       // Set updatedDate
-      data.updatedDate = new Date().toISOString().split("T")[0];
+      data.updatedDate = nowKST();
 
       const fileContent = matter.stringify(content, data);
       await writeFile(filePath, fileContent, "utf-8");

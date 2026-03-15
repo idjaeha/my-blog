@@ -2,6 +2,7 @@ import { z } from "zod";
 import { writeFile, access } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import matter from "gray-matter";
+import { nowKST } from "../utils/date";
 
 export const createPostTool = {
   name: "create-post",
@@ -81,19 +82,12 @@ export const createPostTool = {
         // File does not exist, proceed
       }
 
-      const now = new Date();
-      const kstOffset = 9 * 60;
-      const kst = new Date(
-        now.getTime() + (kstOffset + now.getTimezoneOffset()) * 60000,
-      );
-      const today = `${kst.getFullYear()}-${String(kst.getMonth() + 1).padStart(2, "0")}-${String(kst.getDate()).padStart(2, "0")}T${String(kst.getHours()).padStart(2, "0")}:${String(kst.getMinutes()).padStart(2, "0")}:${String(kst.getSeconds()).padStart(2, "0")}+09:00`;
-
       const frontmatter: Record<string, unknown> = {
         title,
         description,
         category,
         tags: tags ?? [],
-        publishedDate: today,
+        publishedDate: nowKST(),
         draft,
       };
 

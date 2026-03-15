@@ -52,7 +52,9 @@ describe("edit-post-metadata", () => {
     });
 
     const data = parseResult(result);
-    expect(data.frontmatter.updatedDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(data.frontmatter.updatedDate).toMatch(
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+09:00$/,
+    );
   });
 
   it("updates tags", async () => {
