@@ -6,16 +6,22 @@ import { SITE, CATEGORIES } from "@/lib/constants";
 import { t, getLocalizedPath } from "@/i18n";
 import type { Locale } from "@/i18n";
 
-const locale: Locale = "ko";
+const locale: Locale = "en";
 const allPosts = await contentService.getAllPosts(locale);
 const latestPosts = allPosts.slice(0, 5);
 ---
 
-<BaseLayout title={SITE.title} description={SITE.description} locale={locale}>
+<BaseLayout
+  title={SITE.title}
+  description="Personal tech blog - TIL, retrospectives, articles"
+  locale={locale}
+>
   <section class="mx-auto max-w-3xl px-4 py-16">
     <div class="space-y-4">
       <h1 class="text-4xl font-bold tracking-tight">{SITE.title}</h1>
-      <p class="text-lg text-muted-foreground">{SITE.description}</p>
+      <p class="text-lg text-muted-foreground">
+        Personal tech blog - TIL, retrospectives, articles
+      </p>
     </div>
 
     <section class="mt-12">

@@ -1,0 +1,29 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import PostList from "@/components/blog/PostList.astro";
+import CategoryFilter from "@/components/blog/CategoryFilter.astro";
+import { contentService } from "@/lib/content";
+import { t } from "@/i18n";
+import type { Locale } from "@/i18n";
+
+const locale: Locale = "en";
+const allPosts = await contentService.getAllPosts(locale);
+---
+
+<BaseLayout
+  title={`${t("nav.blog", locale)} - Jaeha's Blog`}
+  description={t("blog.allPosts", locale)}
+  locale={locale}
+>
+  <section class="mx-auto max-w-3xl px-4 py-10">
+    <h1 class="mb-6 text-3xl font-bold tracking-tight">
+      {t("nav.blog", locale)}
+    </h1>
+
+    <div class="mb-8">
+      <CategoryFilter locale={locale} />
+    </div>
+
+    <PostList posts={allPosts} locale={locale} />
+  </section>
+</BaseLayout>

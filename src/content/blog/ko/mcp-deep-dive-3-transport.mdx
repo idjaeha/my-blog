@@ -1,0 +1,163 @@
+---
+title: MCP 완전 정복 3편 — SSE에서 Streamable HTTP로
+description: "SSE의 구조적 한계와 2025년 3월 Streamable HTTP로 전환한 이유, 그리고 실무에서의 의미를 설명합니다."
+category: article
+tags:
+  - mcp
+  - sse
+  - http-streaming
+  - protocol
+  - transport
+publishedDate: "2026-03-15"
+draft: true
+series: MCP 완전 정복
+seriesOrder: 3
+---
+
+import Callout from "@/components/mdx/Callout";
+import LinkCard from "@/components/mdx/LinkCard";
+import MermaidDiagram from "@/components/mdx/MermaidDiagram";
+
+## 왜 일반 HTTP는 안 되나
+
+일반 HTTP는 클라이언트가 요청하면 서버가 응답하고 연결이 끊기는 구조다. 이 단순한 구조가 MCP에서는 두 가지 문제를 만든다.
+
+**첫째, 중간 진행 상황을 알 수 없다.** Jira에서 이슈를 대량 검색하거나 외부 API를 여러 번 호출하는 작업은 수 초가 걸린다. 일반 HTTP라면 클라이언트는 결과가 나올 때까지 그냥 기다려야 한다. 서버가 처리 중간에 "지금 50% 됐습니다"라고 알려줄 방법이 없다.
+
+**둘째, 연결 재수립 비용이 크다.** MCP의 agentic loop는 tool_call이 여러 번 반복된다. 일반 HTTP라면 매번 TCP 연결 수립 → TLS 핸드셰이크 → HTTP 헤더 교환을 반복해야 한다.
+
+## SSE (Server-Sent Events)의 등장
+
+MCP 초기 버전(2024-11-05)은 이 문제를 SSE로 해결했다.
+
+SSE는 `Content-Type: text/event-stream`으로 응답을 시작한 뒤 연결을 끊지 않고 서버가 원할 때마다 데이터를 밀어넣는 방식이다.
+
+```
+data: {"type":"progress","value":30}\n\n
+data: {"type":"progress","value":70}\n\n
+data: {"type":"result","issues":[...]}\n\n
+```
+
+WebSocket과 달리 SSE는 일반 HTTP 위에서 동작하기 때문에 방화벽, nginx 프록시, AWS ALB 등 기존 인프라에서 별도 설정 없이 바로 통과된다. MCP 초기 채택에 SSE가 유리했던 이유다.
+
+### SSE의 구조: 두 개의 엔드포인트
+
+하지만 SSE는 서버→클라이언트 단방향 스트림이다. 클라이언트→서버 메시지는 별도 HTTP POST로 보내야 했다. 결과적으로 구 MCP SSE 방식은 두 엔드포인트를 관리해야 했다.
+
+<MermaidDiagram
+  client:visible
+  chart={`sequenceDiagram
+    participant C as Client
+    participant S as MCP Server
+    C->>S: GET /sse (연결 수립)
+    S-->>C: SSE stream 오픈
+    C->>S: POST /message (tool_call)
+    S-->>C: SSE event (progress 30%)
+    S-->>C: SSE event (progress 70%)
+    S-->>C: SSE event (result)`}
+/>
+
+이 구조의 문제점이 세 가지 있었다.
+
+1. **엔드포인트 2개 관리** — `/sse`와 `/message`를 따로 유지해야 한다
+2. **연결 유실 시 응답 손실** — SSE 연결이 끊기면 진행 중이던 작업 결과가 유실된다
+3. **상태 유지 강제** — 서버가 클라이언트마다 장기 연결을 유지해야 하므로 스케일 아웃이 어렵다
+
+<Callout type="warning" title="SSE의 상태 관리 문제">
+  SSE 방식에서는 서버가 각 클라이언트의 연결을 메모리에 유지해야 한다. 수백 개의
+  클라이언트가 동시에 연결되면 서버 리소스 부담이 선형으로 증가하고, 로드밸런서
+  뒤에 서버를 여러 대 두면 Sticky Session 설정이 필요해진다.
+</Callout>
+
+## Streamable HTTP — MCP의 현재 표준
+
+2025년 3월 26일 MCP 스펙 업데이트(버전 2025-03-26)에서 SSE는 deprecated되고 **Streamable HTTP**가 공식 표준이 됐다.
+
+### 핵심 변화: 단일 엔드포인트
+
+Streamable HTTP는 `/mcp` 하나로 POST와 GET을 모두 처리한다. 그리고 서버가 응답 방식을 동적으로 결정한다.
+
+```
+클라이언트 → POST /mcp (tool_call)
+서버 응답 옵션 A → 200 OK + JSON body (단순 결과)
+서버 응답 옵션 B → 200 OK + text/event-stream (스트리밍 필요 시 SSE로 업그레이드)
+```
+
+<MermaidDiagram
+  client:visible
+  chart={`sequenceDiagram
+    participant C as Client
+    participant S as MCP Server
+    C->>S: POST /mcp (initialize)
+    S-->>C: 200 OK + Mcp-Session-Id: abc123
+    C->>S: POST /mcp (tool_call, Session-Id: abc123)
+    S-->>C: SSE stream (필요 시 업그레이드)
+    S-->>C: data: progress 30%
+    S-->>C: data: progress 70%
+    S-->>C: data: result`}
+/>
+
+<Callout type="tip" title="SSE가 사라진 게 아니다">
+  Streamable HTTP는 SSE를 버린 것이 아니다. "항상 SSE 연결을 열어둬야 한다는
+  강제"를 없앤 것이다. 스트리밍이 필요한 응답은 여전히 SSE 형식으로 데이터를
+  밀어준다. 다만 그 결정권이 서버에게 생겼다.
+</Callout>
+
+## SSE vs Streamable HTTP 비교
+
+| 항목            | HTTP+SSE (구)             | Streamable HTTP (신)          |
+| --------------- | ------------------------- | ----------------------------- |
+| 엔드포인트      | `/sse` + `/message` 2개   | `/mcp` 1개                    |
+| 연결 방식       | 항상 persistent 연결 유지 | 필요 시에만 스트림 업그레이드 |
+| 서버 아키텍처   | stateful 강제             | stateless 지원                |
+| 연결 끊김 복구  | 응답 유실                 | `Mcp-Session-Id`로 재개 가능  |
+| Serverless 배포 | 불가                      | 가능 (Lambda 등)              |
+| 인프라 호환성   | 표준 HTTP                 | 표준 HTTP (동일)              |
+
+## Mcp-Session-Id — 세션 재개의 핵심
+
+Streamable HTTP에서 새로 도입된 `Mcp-Session-Id` 헤더는 연결 재개를 가능하게 한다.
+
+서버는 초기화 응답에 세션 ID를 포함해 보낸다. 이후 클라이언트는 모든 요청에 이 ID를 헤더로 붙인다.
+
+```http
+POST /mcp HTTP/1.1
+Content-Type: application/json
+Mcp-Session-Id: abc123-xyz789
+
+{"jsonrpc":"2.0","id":5,"method":"jira_search","params":{...}}
+```
+
+Wi-Fi가 끊겼다가 다시 연결돼도, 같은 세션 ID로 재연결하면 서버는 이전 컨텍스트를 이어받아 처리할 수 있다. 노트북을 절전 모드로 껐다 켜도 agentic 작업이 중단 없이 이어진다.
+
+## WebSocket이 아닌 이유
+
+양방향 실시간 통신이 가능한 WebSocket을 쓰지 않는 이유도 명확하다.
+
+MCP의 통신 패턴은 클라이언트→서버는 HTTP POST, 서버→클라이언트는 선택적 SSE 스트림으로 충분하다. 진짜 양방향이 필요 없는 것이다.
+
+그리고 WebSocket은 `Upgrade` 헤더가 필요해 기업 방화벽이나 프록시에서 설정을 따로 만져야 하는 경우가 많다. 브라우저에서 `Authorization` 헤더도 붙일 수 없다. Streamable HTTP는 표준 HTTP POST/GET이라 기존 인프라(WAF, ALB, nginx)가 그대로 동작한다.
+
+## 실무적 의미
+
+ECS 같은 컨테이너 환경에서 MCP Server를 운영하는 관점에서 보면, Streamable HTTP 전환이 가져오는 실질적 변화가 두 가지 있다.
+
+**스케일 아웃이 쉬워진다.** SSE 방식에서는 Sticky Session 설정이 필요했다. 특정 클라이언트의 요청이 항상 같은 서버 인스턴스에 가야 했기 때문이다. Streamable HTTP + stateless 서버 구조에서는 로드밸런서가 어느 인스턴스에 요청을 보내든 세션 ID로 상태를 복원할 수 있다.
+
+**연결 불안정에 강해진다.** 장기 실행 agentic 작업 도중 네트워크가 끊겨도 세션을 재개할 수 있다. 클라이언트 재시작이나 네트워크 순단이 작업 실패로 이어지지 않는다.
+
+## 정리
+
+MCP의 전송 계층은 일반 HTTP → HTTP+SSE → Streamable HTTP 순서로 진화했다.
+
+- 일반 HTTP는 단방향 요청-응답만 가능해 실시간 스트리밍 불가
+- HTTP+SSE는 스트리밍을 해결했지만 두 엔드포인트와 stateful 서버를 강제
+- Streamable HTTP는 단일 엔드포인트 + 선택적 SSE + 세션 재개로 이 한계를 모두 극복
+
+이 시리즈 3편에 걸쳐 MCP의 개념, JSON-RPC 2.0, 전송 계층을 살펴봤다. 세 계층이 맞물리는 방식을 이해하면 MCP Server를 설계하거나 트러블슈팅할 때 어디를 들여다봐야 하는지가 명확해진다.
+
+<LinkCard
+  href="https://modelcontextprotocol.io/specification/2025-03-26/basic/transports"
+  title="MCP 공식 스펙 — Transports"
+  description="Streamable HTTP 전송 계층의 공식 스펙 문서"
+/>

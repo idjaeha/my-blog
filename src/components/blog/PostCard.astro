@@ -1,0 +1,61 @@
+---
+import type { Post } from "@/lib/content";
+import { type Locale, t, getLocalizedPath } from "@/i18n";
+import { CATEGORIES } from "@/lib/constants";
+import { formatDate, getReadingTime } from "@/lib/utils";
+
+interface Props {
+  post: Post;
+  locale: Locale;
+}
+
+const { post, locale } = Astro.props;
+const href = getLocalizedPath(`/blog/${post.slug}`, locale);
+const categoryLabel = CATEGORIES[post.category]?.[locale] ?? post.category;
+const readingTime = getReadingTime(post.body, locale);
+---
+
+<article
+  class="rounded-lg border border-border bg-card p-5 transition-colors hover:bg-accent/50"
+>
+  <a href={href} class="block space-y-3">
+    <div
+      class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground"
+    >
+      <span
+        class="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
+      >
+        {categoryLabel}
+      </span>
+      <span aria-hidden="true">&middot;</span>
+      <time datetime={post.publishedDate.toISOString()}>
+        {formatDate(post.publishedDate, locale)}
+      </time>
+      <span aria-hidden="true">&middot;</span>
+      <span>{readingTime}{t("blog.minuteRead", locale)}</span>
+    </div>
+
+    <h3 class="text-lg font-semibold tracking-tight text-card-foreground">
+      {post.title}
+    </h3>
+
+    <p class="text-sm text-muted-foreground line-clamp-2">
+      {post.description}
+    </p>
+  </a>
+
+  {
+    post.tags.length > 0 && (
+      <div class="mt-3 flex flex-wrap gap-1.5">
+        {post.tags.map((tag) => (
+          <a
+            href={getLocalizedPath(`/blog/tags/${tag}`, locale)}
+            class="rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground transition-colors hover:bg-secondary/80"
+          >
+            {tag}
+          </a>
+        ))}
+      </div>
+    )
+  }
+</article>

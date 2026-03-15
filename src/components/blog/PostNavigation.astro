@@ -1,0 +1,51 @@
+---
+import { type Locale, t, getLocalizedPath } from "@/i18n";
+
+interface Props {
+  prevPost?: { slug: string; title: string };
+  nextPost?: { slug: string; title: string };
+  locale: Locale;
+}
+
+const { prevPost, nextPost, locale } = Astro.props;
+---
+
+{
+  (prevPost || nextPost) && (
+    <nav class="mt-12 border-t border-border pt-6" aria-label="Post navigation">
+      <div class="flex justify-between gap-4">
+        <div class="flex-1">
+          {prevPost && (
+            <a
+              href={getLocalizedPath(`/blog/${prevPost.slug}`, locale)}
+              class="group block space-y-1"
+            >
+              <span class="text-sm text-muted-foreground">
+                {t("blog.prevPost", locale)}
+              </span>
+              <p class="font-medium text-foreground transition-colors group-hover:text-primary">
+                {prevPost.title}
+              </p>
+            </a>
+          )}
+        </div>
+
+        <div class="flex-1 text-right">
+          {nextPost && (
+            <a
+              href={getLocalizedPath(`/blog/${nextPost.slug}`, locale)}
+              class="group block space-y-1"
+            >
+              <span class="text-sm text-muted-foreground">
+                {t("blog.nextPost", locale)}
+              </span>
+              <p class="font-medium text-foreground transition-colors group-hover:text-primary">
+                {nextPost.title}
+              </p>
+            </a>
+          )}
+        </div>
+      </div>
+    </nav>
+  )
+}

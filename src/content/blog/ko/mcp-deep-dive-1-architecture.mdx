@@ -1,0 +1,107 @@
+---
+title: MCP 완전 정복 1편 — 개념과 아키텍처
+description: >-
+  Model Context Protocol이 무엇인지, Host·Protocol·Server 세 계층이 어떻게 맞물려 동작하는지 요청 흐름
+  중심으로 설명합니다.
+category: article
+tags:
+  - mcp
+  - ai
+  - protocol
+  - architecture
+publishedDate: "2026-03-15"
+draft: true
+series: MCP 완전 정복
+seriesOrder: 1
+---
+
+import Callout from "@/components/mdx/Callout";
+import LinkCard from "@/components/mdx/LinkCard";
+import MermaidDiagram from "@/components/mdx/MermaidDiagram";
+
+## MCP가 왜 필요한가
+
+AI 앱이 외부 서비스와 연동하려면, 기존에는 각 서비스마다 API를 개별적으로 붙여야 했다. Claude에 Jira를 연결하려면 Anthropic API와 Jira API를 각각 따로 통합하고, Cursor에 Jira를 연결하려면 처음부터 또 만들어야 했다.
+
+MCP(Model Context Protocol)는 이 문제를 해결하는 **표준 커넥터**다. USB-C에 비유하면 이해하기 쉽다. 기기마다 다른 케이블이 필요했던 시절이 있었지만, USB-C 하나로 다 연결하듯이 — Atlassian이 MCP Server를 하나만 만들어두면 Claude, Cursor, Copilot 어디든 꽂아 쓸 수 있다.
+
+<Callout type="info" title="MCP의 핵심 가치">
+  AI 앱과 외부 서비스 사이의 통합 비용을 "N × M"에서 "N + M"으로 줄이는 것이
+  MCP의 목표다. 서비스 제공자는 MCP Server 하나만, AI 앱 개발자는 MCP Client
+  하나만 만들면 된다.
+</Callout>
+
+## 세 가지 구성 요소
+
+MCP 아키텍처는 Host, Protocol, Server 세 계층으로 나뉜다.
+
+### Host Application (MCP Client)
+
+Claude, Cursor 같은 AI 앱이 여기에 해당한다. 사용자의 자연어 요청을 받아서 어떤 MCP Server를 써야 할지 판단하고 호출하는 주체다. MCP Client가 내장되어 있어 프로토콜 통신을 담당한다.
+
+### MCP Protocol
+
+Host와 Server 사이의 통신 표준이다. JSON-RPC 2.0 기반으로 메시지를 주고받으며, 전송 방식은 환경에 따라 다르다.
+
+- **stdio** — 로컬 프로세스 간 통신 (서버를 subprocess로 실행)
+- **Streamable HTTP** — 원격 서버와의 통신 (HTTP POST/GET + 선택적 SSE)
+
+### MCP Server
+
+실제 기능을 제공하는 쪽이다. 세 가지 타입을 노출할 수 있다.
+
+| 타입          | 설명                          | 예시                          |
+| ------------- | ----------------------------- | ----------------------------- |
+| **Tools**     | AI가 실행할 수 있는 함수      | `jira_search`, `create_issue` |
+| **Resources** | 읽기 전용 데이터/파일         | 파일 시스템, DB 스키마        |
+| **Prompts**   | 재사용 가능한 프롬프트 템플릿 | 코드 리뷰 템플릿              |
+
+## 전체 아키텍처
+
+<MermaidDiagram
+  client:visible
+  chart={`graph LR
+    U[User] --> H[Host App\nClaude / Cursor]
+    H <--> P[MCP Protocol\nJSON-RPC 2.0]
+    P <--> S1[MCP Server\nAtlassian]
+    P <--> S2[MCP Server\nGitHub]
+    P <--> S3[MCP Server\nFilesystem]`}
+/>
+
+## 실제 요청 흐름
+
+"Jira 이슈 검색해줘"라는 요청이 처리되는 과정을 단계별로 보면 이렇다.
+
+### 1단계 — Connection 초기화
+
+MCP Client가 시작될 때 서버와 `initialize` 핸드셰이크를 진행한다. 이때 서버가 제공하는 툴 목록과 리소스 목록을 받아와 LLM의 시스템 프롬프트에 주입한다. Claude가 "어떤 툴을 쓸 수 있는지" 아는 것이 이 단계 덕분이다.
+
+### 2단계 — Tool Calling 루프
+
+LLM이 특정 툴을 쓰기로 결정하면 structured output으로 `tool_use` 블록을 내보낸다. Host가 이를 MCP 프로토콜로 변환해 서버에 보내고, 결과를 `tool_result`로 다시 LLM에 전달한다. 이 루프가 반복될 수 있어서 "agentic loop"라고도 부른다.
+
+```
+User → LLM → tool_use → MCP Server → 외부 API → tool_result → LLM → User
+```
+
+### 3단계 — 최종 응답
+
+모든 tool_result를 받은 LLM이 자연어로 가공해 사용자에게 최종 응답을 돌려준다.
+
+<Callout type="tip" title="agentic loop">
+  tool_call은 한 번으로 끝나지 않는 경우가 많다. 예를 들어 "이슈를 찾아서
+  담당자를 바꿔줘"라면 search → update 두 번의 tool_call이 순서대로 실행된다.
+  LLM이 이 순서를 스스로 계획하고 실행하는 것이 agentic loop의 핵심이다.
+</Callout>
+
+## 정리
+
+MCP는 AI 앱과 외부 서비스를 연결하는 표준 프로토콜이다. Host(AI 앱) → Protocol(JSON-RPC 2.0) → Server(외부 서비스) 세 계층 구조로 동작하며, 연결 초기화 → tool_use 루프 → 최종 응답 순서로 요청을 처리한다.
+
+다음 편에서는 프로토콜 계층의 핵심인 **JSON-RPC 2.0이 무엇인지**, 그리고 **직렬화가 실제로 어떻게 일어나는지**를 다룬다.
+
+<LinkCard
+  href="/blog/mcp-deep-dive-2-json-rpc"
+  title="MCP 완전 정복 2편 — JSON-RPC 2.0과 직렬화"
+  description="JSON-RPC 메시지 구조와 직렬화/역직렬화 과정을 상세히 설명합니다."
+/>

@@ -1,0 +1,179 @@
+---
+title: MCP 완전 정복 2편 — JSON-RPC 2.0과 직렬화
+description: "MCP 통신의 핵심인 JSON-RPC 2.0 메시지 구조를 설명하고, 직렬화/역직렬화가 실제로 어떻게 일어나는지 단계별로 살펴봅니다."
+category: article
+tags:
+  - mcp
+  - json-rpc
+  - protocol
+  - serialization
+publishedDate: "2026-03-15"
+draft: true
+series: MCP 완전 정복
+seriesOrder: 2
+---
+
+import Callout from "@/components/mdx/Callout";
+import LinkCard from "@/components/mdx/LinkCard";
+
+## JSON-RPC 2.0이란
+
+JSON-RPC는 **"JSON으로 포장한 원격 함수 호출(Remote Procedure Call) 규약"** 이다. 다른 프로세스나 서버에 있는 함수를 마치 로컬에서 호출하듯 쓸 수 있게 해주는 약속이다.
+
+"2.0"은 버전을 뜻하며, 2010년에 확정된 스펙이다. 모든 메시지에 `"jsonrpc": "2.0"` 필드를 반드시 포함해야 한다.
+
+## 메시지 세 가지 타입
+
+JSON-RPC 2.0의 메시지는 단 세 종류뿐이다.
+
+### 1. Request — 응답을 기대하는 요청
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "jira_search",
+  "params": {
+    "jql": "project = BIO AND status = 'In Progress'"
+  }
+}
+```
+
+`id` 필드가 핵심이다. 여러 요청을 동시에 날려도 응답이 뒤섞이지 않고 `id`로 짝을 찾을 수 있다.
+
+### 2. Response — Request에 대한 응답
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "issues": [{ "key": "BIO-42", "summary": "OpenSearch 동의어 사전 최적화" }]
+  }
+}
+```
+
+`id`가 Request와 동일해야 한다. 오류 발생 시에는 `result` 대신 `error` 필드가 온다.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "error": {
+    "code": -32600,
+    "message": "Invalid Request"
+  }
+}
+```
+
+### 3. Notification — 응답이 필요 없는 단방향 전송
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "progress",
+  "params": {
+    "value": 42,
+    "message": "Jira API 호출 중..."
+  }
+}
+```
+
+`id`가 없다. 서버가 진행 상황을 클라이언트에 푸시할 때 사용한다.
+
+<Callout type="info" title="표준 에러 코드">
+  JSON-RPC 2.0에는 미리 정의된 에러 코드가 있다. `-32700`은 Parse error,
+  `-32600`은 Invalid Request, `-32601`은 Method not found, `-32602`는 Invalid
+  params다. MCP는 여기에 자체 에러 코드를 추가해 사용한다.
+</Callout>
+
+## JSON-RPC를 선택한 이유
+
+다른 프로토콜도 있는데 JSON-RPC를 고른 이유가 있다.
+
+| 프로토콜     | 장점              | MCP에 부적합한 이유                                                |
+| ------------ | ----------------- | ------------------------------------------------------------------ |
+| **gRPC**     | 성능, 타입 안전성 | `.proto` 스키마 + 빌드 파이프라인 필요 → 서버 구현 진입장벽 높음   |
+| **REST**     | 범용성            | 동사(GET/POST/PUT)가 리소스 중심 → "함수 호출" 개념에 부자연스러움 |
+| **JSON-RPC** | 단순성            | `method` + `params`만 정의하면 끝 → 언어/런타임 무관하게 구현 가능 |
+
+JSON-RPC는 MCP Server를 Python, TypeScript, Kotlin 등 어떤 언어로도 낮은 진입장벽으로 구현할 수 있게 해준다. Anthropic이 생태계 확장을 우선순위에 두었기 때문에 선택한 트레이드오프다.
+
+## 직렬화(Serialization)란
+
+직렬화는 **메모리 안에 있는 프로그램 객체를 전송 가능한 바이트 스트림(텍스트)으로 변환하는 과정**이다. 반대는 역직렬화(Deserialization)다.
+
+MCP에서 실제로 일어나는 과정을 따라가 보면 이렇다.
+
+### 1단계 — LLM이 tool_use 블록 생성
+
+LLM(Claude)이 응답 생성 시 Jira 검색이 필요하다고 판단하면, 메모리 내부에 구조화된 객체를 만든다.
+
+```
+ToolUseBlock {
+  id: "toolu_abc123",
+  name: "jira_search",
+  input: { jql: "project = BIO AND status = 'In Progress'" }
+}
+```
+
+이 객체는 아직 Python/TypeScript의 메모리 안에 있는 데이터 구조다. 다른 프로세스로 보낼 수 없다.
+
+### 2단계 — JSON 직렬화 (Host가 수행)
+
+Host가 이 객체를 JSON 텍스트로 변환한다. 이것이 직렬화다.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "jira_search",
+  "params": {
+    "jql": "project = BIO AND status = 'In Progress'"
+  }
+}
+```
+
+이제 네트워크(또는 stdio)로 전송할 수 있는 텍스트가 됐다.
+
+### 3단계 — 전송
+
+stdio라면 표준 입력으로, SSE/HTTP라면 HTTP body로 텍스트가 전달된다.
+
+### 4단계 — 역직렬화 (MCP Server가 수행)
+
+MCP Server(예: Atlassian 서버, Python으로 작성)가 받은 JSON 텍스트를 자기 언어의 객체로 복원한다.
+
+```python
+# Python MCP Server 내부
+request = {
+    "method": "jira_search",
+    "params": {"jql": "project = BIO AND status = 'In Progress'"}
+}
+# 실제 Jira API 호출
+issues = jira_client.search_issues(request["params"]["jql"])
+```
+
+### 5단계 — 결과를 다시 직렬화해서 반환
+
+서버가 Jira API에서 받은 결과를 다시 JSON으로 직렬화해 Host에 보내면, Host가 역직렬화해 LLM에 `tool_result`로 전달한다.
+
+<Callout type="tip" title="직렬화의 본질">
+  결국 직렬화는 "프로그램끼리 주고받기 위해 공통 언어(JSON 텍스트)로 번역하는
+  것"이다. LLM(Claude)이 Python이든, MCP Server가 Kotlin이든, 중간에 JSON이라는
+  공통 언어가 있기 때문에 언어 장벽 없이 통신할 수 있다.
+</Callout>
+
+## 정리
+
+JSON-RPC 2.0은 Request / Response / Notification 세 가지 메시지 타입으로 구성된 단순한 원격 함수 호출 규약이다. MCP가 gRPC나 REST 대신 JSON-RPC를 선택한 것은 낮은 진입장벽으로 생태계를 빠르게 확장하기 위한 전략적 선택이었다.
+
+직렬화는 이 메시지들을 실제로 전송 가능한 형태로 변환하는 과정이며, MCP의 모든 통신은 이 변환을 통해 언어 무관하게 동작한다.
+
+다음 편에서는 이 메시지들이 실제로 어떤 전송 계층을 타고 이동하는지, **SSE에서 Streamable HTTP로 전환한 이유**를 설명한다.
+
+<LinkCard
+  href="/blog/mcp-deep-dive-3-transport"
+  title="MCP 완전 정복 3편 — SSE에서 Streamable HTTP로"
+  description="SSE의 한계와 Streamable HTTP가 해결하는 것들, MCP 스펙 변경 배경을 다룹니다."
+/>

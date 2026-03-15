@@ -1,0 +1,43 @@
+---
+import { type Locale, t, getLocalizedPath } from "@/i18n";
+import { CATEGORIES } from "@/lib/constants";
+
+interface Props {
+  locale: Locale;
+  activeCategory?: string;
+}
+
+const { locale, activeCategory } = Astro.props;
+const blogPath = getLocalizedPath("/blog", locale);
+
+const categories = [
+  { key: "all", label: t("blog.allCategories", locale), href: blogPath },
+  ...Object.entries(CATEGORIES).map(([key, labels]) => ({
+    key,
+    label: labels[locale],
+    href: `${blogPath}?category=${key}`,
+  })),
+];
+---
+
+<nav class="flex flex-wrap gap-2" aria-label={t("blog.categories", locale)}>
+  {
+    categories.map(({ key, label, href }) => {
+      const isActive = activeCategory ? key === activeCategory : key === "all";
+      return (
+        <a
+          href={href}
+          class:list={[
+            "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+            isActive
+              ? "bg-primary text-primary-foreground"
+              : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+          ]}
+          aria-current={isActive ? "page" : undefined}
+        >
+          {label}
+        </a>
+      );
+    })
+  }
+</nav>

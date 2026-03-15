@@ -1,0 +1,33 @@
+---
+import { type Locale, getLocalizedPath } from "@/i18n";
+
+interface Props {
+  tags: string[];
+  locale: Locale;
+  activeTag?: string;
+}
+
+const { tags, locale, activeTag } = Astro.props;
+---
+
+<div class="flex flex-wrap gap-2">
+  {
+    tags.map((tag) => {
+      const isActive = tag === activeTag;
+      return (
+        <a
+          href={getLocalizedPath(`/blog/tags/${tag}`, locale)}
+          class:list={[
+            "rounded-md px-3 py-1 text-sm transition-colors",
+            isActive
+              ? "bg-primary text-primary-foreground"
+              : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+          ]}
+          aria-current={isActive ? "page" : undefined}
+        >
+          {tag}
+        </a>
+      );
+    })
+  }
+</div>

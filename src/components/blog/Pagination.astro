@@ -1,0 +1,73 @@
+---
+import { t } from "@/i18n";
+import type { Locale } from "@/i18n";
+
+interface Props {
+  currentPage: number;
+  totalPages: number;
+  basePath: string;
+  locale?: Locale;
+}
+
+const { currentPage, totalPages, basePath, locale = "ko" } = Astro.props;
+
+const hasPrev = currentPage > 1;
+const hasNext = currentPage < totalPages;
+
+function getPageHref(page: number): string {
+  if (page === 1) return basePath;
+  return `${basePath}/${page}`;
+}
+
+const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
+---
+
+{
+  totalPages > 1 && (
+    <nav
+      class="mt-8 flex items-center justify-center gap-2"
+      aria-label={t("blog.page", locale)}
+    >
+      {hasPrev ? (
+        <a
+          href={getPageHref(currentPage - 1)}
+          class="rounded-md border border-border px-3 py-1.5 text-sm transition-colors hover:bg-accent"
+        >
+          {t("blog.prev", locale)}
+        </a>
+      ) : (
+        <span class="rounded-md border border-border px-3 py-1.5 text-sm text-muted-foreground opacity-50">
+          {t("blog.prev", locale)}
+        </span>
+      )}
+
+      {pages.map((page) => (
+        <a
+          href={getPageHref(page)}
+          class:list={[
+            "rounded-md px-3 py-1.5 text-sm transition-colors",
+            page === currentPage
+              ? "bg-primary text-primary-foreground"
+              : "border border-border hover:bg-accent",
+          ]}
+          aria-current={page === currentPage ? "page" : undefined}
+        >
+          {page}
+        </a>
+      ))}
+
+      {hasNext ? (
+        <a
+          href={getPageHref(currentPage + 1)}
+          class="rounded-md border border-border px-3 py-1.5 text-sm transition-colors hover:bg-accent"
+        >
+          {t("blog.next", locale)}
+        </a>
+      ) : (
+        <span class="rounded-md border border-border px-3 py-1.5 text-sm text-muted-foreground opacity-50">
+          {t("blog.next", locale)}
+        </span>
+      )}
+    </nav>
+  )
+}

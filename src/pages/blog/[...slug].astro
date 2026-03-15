@@ -1,0 +1,54 @@
+---
+import BlogPostLayout from "@/layouts/BlogPostLayout.astro";
+import PostNavigation from "@/components/blog/PostNavigation.astro";
+import { contentService } from "@/lib/content";
+import type { Locale } from "@/i18n";
+
+export async function getStaticPaths() {
+  const locale: Locale = "ko";
+  const posts = await contentService.getAllPosts(locale);
+
+  return posts.map((post, index) => {
+    const prevPost =
+      index < posts.length - 1
+        ? { slug: posts[index + 1].slug, title: posts[index + 1].title }
+        : undefined;
+    const nextPost =
+      index > 0
+        ? { slug: posts[index - 1].slug, title: posts[index - 1].title }
+        : undefined;
+
+    return {
+      params: { slug: post.slug },
+      props: { post, prevPost, nextPost },
+    };
+  });
+}
+
+const { post, prevPost, nextPost } = Astro.props;
+const locale: Locale = "ko";
+const { Content } = await post.render();
+---
+
+<BlogPostLayout
+  frontmatter={{
+    title: post.title,
+    description: post.description,
+    date: post.publishedDate.toISOString(),
+    updatedDate: post.updatedDate?.toISOString(),
+    category: post.category,
+    tags: post.tags,
+    image: post.coverImage,
+    draft: post.draft,
+  }}
+  locale={locale}
+  rawContent={post.body}
+>
+  <Content />
+  <PostNavigation
+    slot="post-nav"
+    prevPost={prevPost}
+    nextPost={nextPost}
+    locale={locale}
+  />
+</BlogPostLayout>

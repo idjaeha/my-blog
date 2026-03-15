@@ -1,0 +1,26 @@
+---
+import type { Post } from "@/lib/content";
+import { type Locale, t } from "@/i18n";
+import PostCard from "@/components/blog/PostCard.astro";
+
+interface Props {
+  posts: Post[];
+  locale: Locale;
+}
+
+const { posts, locale } = Astro.props;
+---
+
+{
+  posts.length > 0 ? (
+    <div class="grid gap-4">
+      {posts.map((post) => (
+        <PostCard post={post} locale={locale} />
+      ))}
+    </div>
+  ) : (
+    <p class="py-12 text-center text-muted-foreground">
+      {t("blog.noPosts", locale)}
+    </p>
+  )
+}

@@ -1,0 +1,55 @@
+import { getCollection, getEntry, render } from "astro:content";
+import type { ContentService, Post } from "./types";
+
+export class AstroContentLoader implements ContentService {
+  async getPost(slug: string, locale: string = "ko"): Promise<Post | null> {
+    const id = `${locale}/${slug}`;
+    const entry = await getEntry("blog", id);
+    if (!entry) return null;
+    return this.mapEntry(entry, locale);
+  }
+
+  async getAllPosts(locale: string = "ko"): Promise<Post[]> {
+    const entries = await getCollection("blog", (entry) => {
+      return entry.id.startsWith(`${locale}/`) && !entry.data.draft;
+    });
+    return entries
+      .map((e) => this.mapEntry(e, locale))
+      .sort((a, b) => b.publishedDate.getTime() - a.publishedDate.getTime());
+  }
+
+  async getPostsByTag(tag: string, locale: string = "ko"): Promise<Post[]> {
+    const posts = await this.getAllPosts(locale);
+    return posts.filter((p) => p.tags.includes(tag));
+  }
+
+  async getPostsByCategory(
+    category: string,
+    locale: string = "ko",
+  ): Promise<Post[]> {
+    const posts = await this.getAllPosts(locale);
+    return posts.filter((p) => p.category === category);
+  }
+
+  async getAllTags(locale: string = "ko"): Promise<string[]> {
+    const posts = await this.getAllPosts(locale);
+    const tags = new Set(posts.flatMap((p) => p.tags));
+    return [...tags].sort();
+  }
+
+  async getAllCategories(): Promise<string[]> {
+    return ["til", "retrospective", "article", "tutorial"];
+  }
+
+  private mapEntry(entry: any, locale: string): Post {
+    const slug = entry.id.replace(`${locale}/`, "");
+    return {
+      id: entry.id,
+      slug,
+      locale: locale as "ko" | "en",
+      body: entry.body ?? "",
+      render: () => render(entry),
+      ...entry.data,
+    };
+  }
+}

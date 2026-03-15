@@ -1,0 +1,73 @@
+---
+import "@/styles/globals.css";
+import BaseHead from "@/components/layout/BaseHead.astro";
+import Header from "@/components/layout/Header.astro";
+import Footer from "@/components/layout/Footer.astro";
+import { type Locale, t, getLocalizedPath } from "@/i18n";
+import ThemeToggle from "@/components/islands/ThemeToggle";
+import MobileNav from "@/components/islands/MobileNav";
+
+interface Props {
+  title: string;
+  description: string;
+  image?: string;
+  type?: "website" | "article";
+  publishedDate?: string;
+  updatedDate?: string;
+  locale?: Locale;
+  alternateLocale?: Locale;
+  alternatePath?: string;
+}
+
+const {
+  title,
+  description,
+  image,
+  type,
+  publishedDate,
+  updatedDate,
+  locale = "ko",
+  alternateLocale,
+  alternatePath,
+} = Astro.props;
+
+const mobileNavLinks = [
+  { href: getLocalizedPath("/", locale), label: t("nav.home", locale) },
+  { href: getLocalizedPath("/blog", locale), label: t("nav.blog", locale) },
+  { href: getLocalizedPath("/about", locale), label: t("nav.about", locale) },
+];
+---
+
+<!doctype html>
+<html lang={locale === "ko" ? "ko" : "en"}>
+  <head>
+    <BaseHead
+      title={title}
+      description={description}
+      image={image}
+      type={type}
+      publishedDate={publishedDate}
+      updatedDate={updatedDate}
+      locale={locale}
+      alternateLocale={alternateLocale}
+      alternatePath={alternatePath}
+    />
+  </head>
+  <body
+    class="min-h-dvh flex flex-col bg-background text-foreground antialiased"
+  >
+    <Header locale={locale}>
+      <ThemeToggle client:load slot="theme-toggle" />
+      <MobileNav
+        client:load
+        slot="mobile-nav"
+        locale={locale}
+        links={mobileNavLinks}
+      />
+    </Header>
+    <main class="flex-1">
+      <slot />
+    </main>
+    <Footer locale={locale} />
+  </body>
+</html>

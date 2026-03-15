@@ -1,0 +1,102 @@
+---
+import { SITE } from "@/lib/constants";
+
+interface Props {
+  title: string;
+  description: string;
+  image?: string;
+  type?: "website" | "article";
+  publishedDate?: string;
+  updatedDate?: string;
+  locale?: "ko" | "en";
+  alternateLocale?: "ko" | "en";
+  alternatePath?: string;
+}
+
+const {
+  title,
+  description,
+  image = "/og-default.png",
+  type = "website",
+  publishedDate,
+  updatedDate,
+  locale = "ko",
+  alternateLocale,
+  alternatePath,
+} = Astro.props;
+
+const canonicalURL = new URL(Astro.url.pathname, Astro.site);
+const ogImageURL = new URL(image, Astro.site);
+const ogLocale = locale === "ko" ? "ko_KR" : "en_US";
+---
+
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="generator" content={Astro.generator} />
+
+<title>{title}</title>
+<meta name="description" content={description} />
+<link rel="canonical" href={canonicalURL.href} />
+
+<!-- Open Graph -->
+<meta property="og:type" content={type} />
+<meta property="og:url" content={canonicalURL.href} />
+<meta property="og:title" content={title} />
+<meta property="og:description" content={description} />
+<meta property="og:image" content={ogImageURL.href} />
+<meta property="og:locale" content={ogLocale} />
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content={title} />
+<meta name="twitter:description" content={description} />
+<meta name="twitter:image" content={ogImageURL.href} />
+
+<!-- Article dates -->
+{
+  publishedDate && (
+    <meta property="article:published_time" content={publishedDate} />
+  )
+}
+{updatedDate && <meta property="article:modified_time" content={updatedDate} />}
+
+<!-- Alternate language -->
+{
+  alternateLocale && alternatePath && (
+    <link
+      rel="alternate"
+      hreflang={alternateLocale}
+      href={new URL(alternatePath, Astro.site).href}
+    />
+  )
+}
+
+<!-- RSS -->
+<link
+  rel="alternate"
+  type="application/rss+xml"
+  title={`${SITE.title} (한국어)`}
+  href={new URL("/rss.xml", Astro.site).href}
+/>
+<link
+  rel="alternate"
+  type="application/rss+xml"
+  title={`${SITE.title} (English)`}
+  href={new URL("/en/rss.xml", Astro.site).href}
+/>
+
+<!-- Sitemap -->
+<link rel="sitemap" href="/sitemap-index.xml" />
+
+<!-- FOUC prevention: apply dark mode before render -->
+<script is:inline>
+  (function () {
+    const theme = localStorage.getItem("theme");
+    if (
+      theme === "dark" ||
+      (!theme && window.matchMedia("(prefers-color-scheme: dark)").matches)
+    ) {
+      document.documentElement.classList.add("dark");
+    }
+  })();
+</script>

@@ -1,0 +1,30 @@
+---
+import { type Locale, t } from "@/i18n";
+import { SITE } from "@/lib/constants";
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const currentYear = new Date().getFullYear();
+const rssPath = locale === "ko" ? "/rss.xml" : "/en/rss.xml";
+---
+
+<footer class="border-t border-border">
+  <div
+    class="mx-auto flex max-w-3xl flex-col items-center gap-2 px-4 py-8 text-sm text-muted-foreground sm:flex-row sm:justify-between"
+  >
+    <p>
+      &copy; {currentYear}
+      {SITE.author}. {t("footer.rights", locale)}
+    </p>
+    <a
+      href={rssPath}
+      class="transition-colors hover:text-foreground"
+      aria-label="RSS Feed"
+    >
+      RSS
+    </a>
+  </div>
+</footer>
