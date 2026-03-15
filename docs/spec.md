@@ -1071,7 +1071,7 @@ export async function GET(context: { site: URL }) {
 import sitemap from "@astrojs/sitemap";
 
 export default defineConfig({
-  site: "https://your-blog.vercel.app",
+  site: "https://my-blog.site",
   integrations: [sitemap()],
 });
 ```
@@ -1186,7 +1186,7 @@ import sitemap from "@astrojs/sitemap";
 import vercel from "@astrojs/vercel";
 
 export default defineConfig({
-  site: "https://your-blog.vercel.app",
+  site: "https://my-blog.site",
   output: "static",
   adapter: vercel(),
   integrations: [
@@ -1263,7 +1263,7 @@ jobs:
 export const SITE = {
   title: "Jaeha's Blog",
   description: "개인 기술 블로그 - TIL, 프로젝트 회고, 기술 아티클",
-  url: "https://your-blog.vercel.app",
+  url: "https://my-blog.site",
   author: "Jaeha Yi",
   defaultLocale: "ko" as const,
 } as const;
