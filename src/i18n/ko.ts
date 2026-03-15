@@ -21,7 +21,7 @@ const ko: Record<string, string> = {
   "blog.next": "다음",
   "blog.page": "페이지",
   "about.title": "소개",
-  "about.description": "Jaeha Yi에 대해",
+  "about.description": "ID001에 대해",
   "search.placeholder": "검색어를 입력하세요...",
   "search.noResults": "검색 결과가 없습니다",
   "footer.rights": "All rights reserved.",

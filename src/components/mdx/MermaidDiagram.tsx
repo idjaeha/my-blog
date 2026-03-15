@@ -31,9 +31,12 @@ export default function MermaidDiagram({ chart }: MermaidDiagramProps) {
 
         if (cancelled || !containerRef.current) return;
 
+        // Mermaid converts \n to <br> which is invalid in XML/SVG
+        const sanitizedSvg = svg.replace(/<br\s*(?!\/)>/gi, "<br/>");
+
         // Use DOMParser to safely parse the SVG string
         const parser = new DOMParser();
-        const doc = parser.parseFromString(svg, "image/svg+xml");
+        const doc = parser.parseFromString(sanitizedSvg, "image/svg+xml");
         const svgElement = doc.documentElement;
 
         // Clear previous content safely using DOM methods

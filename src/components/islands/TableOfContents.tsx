@@ -12,7 +12,9 @@ export default function TableOfContents() {
   const [activeId, setActiveId] = useState<string>("");
 
   useEffect(() => {
-    const elements = document.querySelectorAll(".prose h2[id], .prose h3[id]");
+    const elements = document.querySelectorAll(
+      ".mdx-content h2[id], .mdx-content h3[id]",
+    );
     const items: Heading[] = Array.from(elements).map((el) => ({
       id: el.id,
       text: el.textContent ?? "",

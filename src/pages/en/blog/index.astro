@@ -5,13 +5,14 @@ import CategoryFilter from "@/components/blog/CategoryFilter.astro";
 import { contentService } from "@/lib/content";
 import { t } from "@/i18n";
 import type { Locale } from "@/i18n";
+import { SITE } from "@/lib/constants";
 
 const locale: Locale = "en";
 const allPosts = await contentService.getAllPosts(locale);
 ---
 
 <BaseLayout
-  title={`${t("nav.blog", locale)} - Jaeha's Blog`}
+  title={`${t("nav.blog", locale)} - ${SITE.title}`}
   description={t("blog.allPosts", locale)}
   locale={locale}
 >

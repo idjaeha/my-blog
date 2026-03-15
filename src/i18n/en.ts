@@ -21,7 +21,7 @@ const en: Record<string, string> = {
   "blog.next": "Next",
   "blog.page": "Page",
   "about.title": "About",
-  "about.description": "About Jaeha Yi",
+  "about.description": "About ID001",
   "search.placeholder": "Search...",
   "search.noResults": "No results found.",
   "footer.rights": "All rights reserved.",

@@ -5,11 +5,20 @@ interface LinkCardProps {
 }
 
 export default function LinkCard({ href, title, description }: LinkCardProps) {
+  const isExternal = /^https?:\/\//.test(href);
+  let hostname: string | null = null;
+  if (isExternal) {
+    try {
+      hostname = new URL(href).hostname;
+    } catch {
+      // invalid URL — skip hostname display
+    }
+  }
+
   return (
     <a
       href={href}
-      target="_blank"
-      rel="noopener noreferrer"
+      {...(isExternal && { target: "_blank", rel: "noopener noreferrer" })}
       className="group border-border bg-card hover:bg-accent my-4 flex items-center gap-4 rounded-lg border p-4 no-underline transition-colors"
     >
       <div className="min-w-0 flex-1">
@@ -21,9 +30,11 @@ export default function LinkCard({ href, title, description }: LinkCardProps) {
             {description}
           </p>
         )}
-        <span className="text-muted-foreground mt-1 block text-xs">
-          {new URL(href).hostname}
-        </span>
+        {hostname && (
+          <span className="text-muted-foreground mt-1 block text-xs">
+            {hostname}
+          </span>
+        )}
       </div>
       <svg
         xmlns="http://www.w3.org/2000/svg"
