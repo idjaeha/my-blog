@@ -24,6 +24,11 @@ const en: Record<string, string> = {
   "about.description": "About ID001",
   "search.placeholder": "Search...",
   "search.noResults": "No results found.",
+  "blog.share": "Share",
+  "blog.shareCopied": "Link copied",
+  "blog.shareOnX": "Share on X",
+  "blog.shareOnLinkedIn": "Share on LinkedIn",
+  "blog.copyLink": "Copy link",
   "footer.rights": "All rights reserved.",
 };
 

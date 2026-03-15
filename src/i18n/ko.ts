@@ -24,6 +24,11 @@ const ko: Record<string, string> = {
   "about.description": "ID001에 대해",
   "search.placeholder": "검색어를 입력하세요...",
   "search.noResults": "검색 결과가 없습니다",
+  "blog.share": "공유",
+  "blog.shareCopied": "링크가 복사되었습니다",
+  "blog.shareOnX": "X에 공유",
+  "blog.shareOnLinkedIn": "LinkedIn에 공유",
+  "blog.copyLink": "링크 복사",
   "footer.rights": "All rights reserved.",
 };
 
