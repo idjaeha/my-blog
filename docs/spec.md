@@ -71,6 +71,8 @@ Astro의 아일랜드 아키텍처를 활용하여 정적 셸과 인터랙티브
 
 ```typescript
 // src/lib/content/types.ts
+import type { ImageMetadata } from "astro";
+
 export interface Post {
   slug: string;
   title: string;
@@ -80,7 +82,7 @@ export interface Post {
   publishedDate: Date;
   updatedDate?: Date;
   draft: boolean;
-  coverImage?: string;
+  coverImage?: ImageMetadata;
   series?: string;
   seriesOrder?: number;
   locale: "ko" | "en";
@@ -247,6 +249,10 @@ Claude Code에서 블로그 글을 직접 작성/편집/관리할 수 있도록 
       "seriesOrder": {
         "type": "number",
         "description": "Order within the series"
+      },
+      "coverImage": {
+        "type": "string",
+        "description": "Relative path to cover image (e.g. '../../../assets/images/blog/my-post-cover.png')"
       }
     },
     "required": ["slug", "title", "description", "category", "locale"]
@@ -425,6 +431,10 @@ draft 상태를 published로 전환한다.
 │   └── og/                      # 정적 OG 이미지 (fallback)
 │
 ├── src/
+│   ├── assets/
+│   │   └── images/
+│   │       └── blog/             # 블로그 이미지 (커버, 인라인)
+│   │
 │   ├── content/
 │   │   └── blog/
 │   │       ├── ko/               # 한국어 포스트 (.mdx)
@@ -537,21 +547,23 @@ draft 상태를 published로 전환한다.
 ```typescript
 // src/content.config.ts
 import { defineCollection, z } from "astro:content";
+import { glob } from "astro/loaders";
 
 const blog = defineCollection({
-  type: "content",
-  schema: z.object({
-    title: z.string().max(100),
-    description: z.string().max(300),
-    category: z.enum(["til", "retrospective", "article", "tutorial"]),
-    tags: z.array(z.string()).default([]),
-    publishedDate: z.coerce.date(),
-    updatedDate: z.coerce.date().optional(),
-    draft: z.boolean().default(false),
-    coverImage: z.string().optional(),
-    series: z.string().optional(),
-    seriesOrder: z.number().optional(),
-  }),
+  loader: glob({ pattern: "**/*.mdx", base: "./src/content/blog" }),
+  schema: ({ image }) =>
+    z.object({
+      title: z.string().max(100),
+      description: z.string().max(300),
+      category: z.enum(["til", "retrospective", "article", "tutorial"]),
+      tags: z.array(z.string()).default([]),
+      publishedDate: z.coerce.date(),
+      updatedDate: z.coerce.date().optional(),
+      draft: z.boolean().default(false),
+      coverImage: image().optional(),
+      series: z.string().optional(),
+      seriesOrder: z.number().optional(),
+    }),
 });
 
 export const collections = { blog };
@@ -576,7 +588,7 @@ category: "article"
 tags: ["astro", "architecture", "performance"]
 publishedDate: 2026-03-15
 draft: false
-coverImage: "/og/astro-islands.png"
+coverImage: "../../../assets/images/blog/astro-islands-cover.png"
 series: "Astro 딥다이브"
 seriesOrder: 1
 ---
@@ -1244,7 +1256,61 @@ jobs:
 
 ---
 
-## 11. Future Considerations (v2+)
+## 11. Images
+
+### 디렉토리 구조
+
+```
+src/assets/images/blog/
+  ├── my-post-hero.png       # 커버 이미지
+  ├── my-post-screenshot.png  # 인라인 이미지
+  └── ...
+```
+
+slug 접두사로 구분하는 플랫 구조. 이미지가 많아지면 per-slug 서브디렉토리로 마이그레이션 가능.
+
+### 인라인 이미지 (MDX 본문)
+
+`Image.astro` 컴포넌트를 사용하여 MDX 본문에 이미지를 삽입한다. `astro:assets`의 `<Image>`를 내부적으로 사용하여 WebP 변환, width/height 자동 설정, CLS 방지를 지원한다.
+
+```mdx
+import heroImg from "@/assets/images/blog/my-post-hero.png";
+import Image from "@/components/mdx/Image.astro";
+
+<Image src={heroImg} alt="스크린샷 설명" caption="선택적 캡션" />
+```
+
+- `src`가 `ImageMetadata`(import한 이미지)면 → `<Image>` (최적화)
+- `src`가 `string`(외부 URL)이면 → `<img>` (호환)
+
+### 커버 이미지
+
+콘텐츠 스키마의 `coverImage` 필드에 `image()` 헬퍼를 사용하여 빌드 타임 최적화를 적용한다.
+
+프론트매터에서 상대 경로로 참조:
+
+```yaml
+---
+coverImage: "../../../assets/images/blog/my-post-cover.png"
+---
+```
+
+커버 이미지는:
+
+- 포스트 상세 페이지 상단에 히어로 이미지로 표시
+- OG 메타 태그에 사용 (coverImage가 없으면 자동 생성된 OG 이미지 사용)
+
+### 최적화
+
+Astro의 `image()` 스키마 헬퍼와 `<Image>` 컴포넌트가 빌드 타임에 자동으로:
+
+- WebP 포맷 변환
+- width/height 속성 자동 설정 (CLS 방지)
+- 적절한 크기로 리사이징
+
+---
+
+## 12. Future Considerations (v2+)
 
 | 기능                 | 상태 | 비고                               |
 | -------------------- | ---- | ---------------------------------- |

@@ -24,6 +24,12 @@ export const createPostTool = {
       .int()
       .optional()
       .describe("Order within the series"),
+    coverImage: z
+      .string()
+      .optional()
+      .describe(
+        "Relative path to cover image (e.g. '../../../assets/images/blog/my-post-cover.png')",
+      ),
   }),
   handler: async ({
     slug,
@@ -36,6 +42,7 @@ export const createPostTool = {
     body,
     series,
     seriesOrder,
+    coverImage,
   }: {
     slug: string;
     title: string;
@@ -47,6 +54,7 @@ export const createPostTool = {
     body?: string;
     series?: string;
     seriesOrder?: number;
+    coverImage?: string;
   }) => {
     const contentDir = resolve(
       process.cwd(),
@@ -91,6 +99,7 @@ export const createPostTool = {
 
       if (series) frontmatter.series = series;
       if (seriesOrder !== undefined) frontmatter.seriesOrder = seriesOrder;
+      if (coverImage) frontmatter.coverImage = coverImage;
 
       const fileContent = matter.stringify(body ?? "", frontmatter);
 
