@@ -127,7 +127,7 @@ sequenceDiagram
   participant D as DOM
   participant R as island 런타임
 
-  P->>D: &lt;astro-island&gt; 태그 삽입
+  P->>D: astro-island 태그 삽입
   D->>R: connectedCallback() 즉시 호출
   R->>R: strategy === 'load'
   R->>R: dynamic import() 시작

@@ -19,6 +19,7 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
     "test:mcp": "cd mcp-server && npx vitest run",
+    "validate:mermaid": "node scripts/validate-mermaid.mjs",
     "prepare": "husky"
   },
   "lint-staged": {

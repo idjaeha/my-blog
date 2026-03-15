@@ -5,6 +5,12 @@ nvm use 2>/dev/null
 pnpm exec lint-staged
 pnpm typecheck
 
+# Validate mermaid blocks in staged md/mdx files
+STAGED_MD=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(md|mdx)$' || true)
+if [ -n "$STAGED_MD" ]; then
+  pnpm validate:mermaid $STAGED_MD
+fi
+
 if git diff --cached --name-only | grep -q '^mcp-server/src/'; then
   cd mcp-server && tsc --noEmit
 fi
