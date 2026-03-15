@@ -4,7 +4,6 @@ import {
   t,
   getLocalizedPath,
   defaultLocale,
-  type Locale,
 } from "@/i18n/index";
 
 describe("defaultLocale", () => {

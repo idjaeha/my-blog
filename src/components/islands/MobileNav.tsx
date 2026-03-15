@@ -8,7 +8,7 @@ interface MobileNavProps {
   links: { href: string; label: string }[];
 }
 
-export default function MobileNav({ locale, links }: MobileNavProps) {
+export default function MobileNav({ links }: MobileNavProps) {
   const [open, setOpen] = useState(false);
   const [visible, setVisible] = useState(false);
   const navRef = useRef<HTMLElement>(null);

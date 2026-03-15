@@ -25,6 +25,7 @@ export async function generateOgImage(options: {
   const { title, subtitle, badge } = options;
   const fontSize = title.length > 40 ? 42 : 52;
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const children: any[] = [];
 
   if (badge) {
@@ -72,6 +73,7 @@ export async function generateOgImage(options: {
     },
   });
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const footerChildren: any[] = [
     {
       type: "div",

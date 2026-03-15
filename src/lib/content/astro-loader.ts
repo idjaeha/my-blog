@@ -43,6 +43,7 @@ export class AstroContentLoader implements ContentService {
     return [...categories].sort();
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private mapEntry(entry: any, locale: string): Post {
     const slug = entry.id.replace(`${locale}/`, "");
     return {

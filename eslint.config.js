@@ -7,6 +7,6 @@ export default [
   ...tseslint.configs.recommended,
   ...eslintPluginAstro.configs.recommended,
   {
-    ignores: ["dist/", ".astro/", "node_modules/", "mcp-server/"],
+    ignores: ["dist/", ".astro/", ".vercel/", "node_modules/", "mcp-server/"],
   },
 ];

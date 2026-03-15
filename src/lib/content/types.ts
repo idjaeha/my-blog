@@ -13,6 +13,7 @@ export interface Post {
   seriesOrder?: number;
   locale: "ko" | "en";
   body: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   render: () => Promise<{ Content: any }>;
 }
 

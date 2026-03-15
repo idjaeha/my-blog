@@ -193,7 +193,7 @@ describe("list-posts", () => {
   });
 
   it("returns error for non-existent locale directory", async () => {
-    const result = await listPostsTool.handler({
+    await listPostsTool.handler({
       locale: "ko",
       limit: 20,
       offset: 0,
