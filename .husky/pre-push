@@ -3,3 +3,4 @@ export NVM_DIR="$HOME/.nvm"
 nvm use 2>/dev/null
 
 pnpm test
+pnpm test:mcp
