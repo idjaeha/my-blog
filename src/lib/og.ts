@@ -17,6 +17,13 @@ export async function loadFont(): Promise<ArrayBuffer> {
   }
 }
 
+async function loadKoreanFont(): Promise<ArrayBuffer> {
+  const res = await fetch(
+    "https://fonts.gstatic.com/s/notosanskr/v36/PbyxFmXiEBPT4ITbgNA5Cgms3VYcOA-vvnIzzuoyeLTq8H4hfeE.ttf",
+  );
+  return await res.arrayBuffer();
+}
+
 export async function generateOgImage(options: {
   title: string;
   subtitle?: string;
@@ -126,6 +133,7 @@ export async function generateOgImage(options: {
           flexDirection: "column",
           justifyContent: "flex-end",
           padding: "60px",
+          fontFamily: "Inter, Noto Sans KR",
           background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
         },
         children,
@@ -138,6 +146,12 @@ export async function generateOgImage(options: {
         {
           name: "Inter",
           data: await loadFont(),
+          weight: 700 as const,
+          style: "normal" as const,
+        },
+        {
+          name: "Noto Sans KR",
+          data: await loadKoreanFont(),
           weight: 700 as const,
           style: "normal" as const,
         },
