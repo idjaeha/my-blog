@@ -18,10 +18,21 @@ export async function loadFont(): Promise<ArrayBuffer> {
 }
 
 async function loadKoreanFont(): Promise<ArrayBuffer> {
-  const res = await fetch(
-    "https://fonts.gstatic.com/s/notosanskr/v36/PbyxFmXiEBPT4ITbgNA5Cgms3VYcOA-vvnIzzuoyeLTq8H4hfeE.ttf",
-  );
-  return await res.arrayBuffer();
+  try {
+    const fontPath = join(
+      process.cwd(),
+      "public",
+      "fonts",
+      "NotoSansKR-Bold.ttf",
+    );
+    const buffer = await readFile(fontPath);
+    return buffer.buffer as ArrayBuffer;
+  } catch {
+    const res = await fetch(
+      "https://cdn.jsdelivr.net/fontsource/fonts/noto-sans-kr@latest/korean-700-normal.ttf",
+    );
+    return await res.arrayBuffer();
+  }
 }
 
 export async function generateOgImage(options: {
