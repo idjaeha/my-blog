@@ -58,12 +58,12 @@ Astro의 아일랜드 아키텍처를 활용하여 정적 셸과 인터랙티브
 
 #### 하이드레이션 디렉티브 전략
 
-| 디렉티브         | 사용처                                 | 이유                              |
-| ---------------- | -------------------------------------- | --------------------------------- |
-| `client:load`    | ThemeToggle, 모바일 네비게이션         | 페이지 로드 즉시 인터랙션 필요    |
-| `client:visible` | React Bits 애니메이션                  | 뷰포트 진입 시 로드 (성능 최적화) |
-| `client:idle`    | TOC, CopyCode 버튼, 검색 모달          | 메인 스레드 여유 시 로드          |
-| No directive     | Card, Badge 등 순수 스타일링 shadcn/ui | SSR만으로 충분, JS 불필요         |
+| 디렉티브         | 사용처                                     | 이유                              |
+| ---------------- | ------------------------------------------ | --------------------------------- |
+| `client:load`    | ThemeToggle, 모바일 네비게이션             | 페이지 로드 즉시 인터랙션 필요    |
+| `client:visible` | React Bits 애니메이션                      | 뷰포트 진입 시 로드 (성능 최적화) |
+| `client:idle`    | TOC, CopyCode 버튼, 검색 모달, ShareButton | 메인 스레드 여유 시 로드          |
+| No directive     | Card, Badge 등 순수 스타일링 shadcn/ui     | SSR만으로 충분, JS 불필요         |
 
 ### 3.2 Content Abstraction Layer
 
@@ -445,6 +445,7 @@ draft 상태를 published로 전환한다.
 │   │   │   ├── SearchModal.tsx
 │   │   │   ├── TableOfContents.tsx
 │   │   │   ├── CopyCodeButton.tsx
+│   │   │   ├── ShareButton.tsx
 │   │   │   └── MobileNav.tsx
 │   │   ├── layout/              # Astro 레이아웃 컴포넌트
 │   │   │   ├── Header.astro
