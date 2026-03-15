@@ -1,43 +1,117 @@
 ---
 import { type Locale, t, getLocalizedPath } from "@/i18n";
 import { CATEGORIES } from "@/lib/constants";
+import { contentService } from "@/lib/content";
 
 interface Props {
   locale: Locale;
-  activeCategory?: string;
 }
 
-const { locale, activeCategory } = Astro.props;
+const { locale } = Astro.props;
 const blogPath = getLocalizedPath("/blog", locale);
+
+const activeCategories = await contentService.getAllCategories(locale);
 
 const categories = [
   { key: "all", label: t("blog.allCategories", locale), href: blogPath },
-  ...Object.entries(CATEGORIES).map(([key, labels]) => ({
-    key,
-    label: labels[locale],
-    href: `${blogPath}?category=${key}`,
-  })),
+  ...activeCategories
+    .filter((key) => key in CATEGORIES)
+    .map((key) => ({
+      key,
+      label: CATEGORIES[key as keyof typeof CATEGORIES][locale],
+      href: `${blogPath}?category=${key}`,
+    })),
 ];
 ---
 
-<nav class="flex flex-wrap gap-2" aria-label={t("blog.categories", locale)}>
+<nav
+  class="flex flex-wrap gap-2"
+  aria-label={t("blog.categories", locale)}
+  id="category-filter"
+>
   {
-    categories.map(({ key, label, href }) => {
-      const isActive = activeCategory ? key === activeCategory : key === "all";
-      return (
-        <a
-          href={href}
-          class:list={[
-            "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-            isActive
-              ? "bg-primary text-primary-foreground"
-              : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-          ]}
-          aria-current={isActive ? "page" : undefined}
-        >
-          {label}
-        </a>
-      );
-    })
+    categories.map(({ key, label, href }) => (
+      <a
+        href={href}
+        data-category={key}
+        class:list={[
+          "category-btn rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        ]}
+        aria-current={key === "all" ? "page" : undefined}
+      >
+        {label}
+      </a>
+    ))
   }
 </nav>
+
+<script>
+  function initCategoryFilter() {
+    const nav = document.getElementById("category-filter");
+    const grid = document.getElementById("post-grid");
+    const noPostsMsg = document.getElementById("no-posts-message");
+    if (!nav || !grid) return;
+
+    const buttons = nav.querySelectorAll<HTMLAnchorElement>(".category-btn");
+    const items = grid.querySelectorAll<HTMLElement>("[data-category]");
+
+    const activeClass = "bg-primary text-primary-foreground";
+    const inactiveClass =
+      "bg-secondary text-secondary-foreground hover:bg-secondary/80";
+
+    function setActive(category: string) {
+      // Update URL without reload
+      const url = new URL(window.location.href);
+      if (category === "all") {
+        url.searchParams.delete("category");
+      } else {
+        url.searchParams.set("category", category);
+      }
+      history.replaceState(null, "", url.toString());
+
+      // Update button styles
+      buttons.forEach((btn) => {
+        const isActive = btn.dataset.category === category;
+        btn.setAttribute("aria-current", isActive ? "page" : "");
+
+        // Remove all variant classes then apply correct ones
+        activeClass.split(" ").forEach((c) => btn.classList.remove(c));
+        inactiveClass.split(" ").forEach((c) => btn.classList.remove(c));
+
+        const classes = isActive ? activeClass : inactiveClass;
+        classes.split(" ").forEach((c) => btn.classList.add(c));
+      });
+
+      // Filter posts
+      let visibleCount = 0;
+      items.forEach((item) => {
+        const show = category === "all" || item.dataset.category === category;
+        item.style.display = show ? "" : "none";
+        if (show) visibleCount++;
+      });
+
+      // Toggle empty message
+      if (noPostsMsg) {
+        noPostsMsg.classList.toggle("hidden", visibleCount > 0);
+      }
+    }
+
+    // Intercept clicks
+    buttons.forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        setActive(btn.dataset.category ?? "all");
+      });
+    });
+
+    // Apply initial state from URL
+    const initialCategory =
+      new URL(window.location.href).searchParams.get("category") ?? "all";
+    setActive(initialCategory);
+  }
+
+  // Run on initial load and on Astro view transitions
+  initCategoryFilter();
+  document.addEventListener("astro:after-swap", initCategoryFilter);
+</script>

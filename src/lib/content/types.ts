@@ -22,5 +22,5 @@ export interface ContentService {
   getPostsByTag(tag: string, locale?: string): Promise<Post[]>;
   getPostsByCategory(category: string, locale?: string): Promise<Post[]>;
   getAllTags(locale?: string): Promise<string[]>;
-  getAllCategories(): Promise<string[]>;
+  getAllCategories(locale?: string): Promise<string[]>;
 }

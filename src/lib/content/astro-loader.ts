@@ -37,8 +37,10 @@ export class AstroContentLoader implements ContentService {
     return [...tags].sort();
   }
 
-  async getAllCategories(): Promise<string[]> {
-    return ["til", "retrospective", "article", "tutorial"];
+  async getAllCategories(locale: string = "ko"): Promise<string[]> {
+    const posts = await this.getAllPosts(locale);
+    const categories = new Set(posts.map((p) => p.category));
+    return [...categories].sort();
   }
 
   private mapEntry(entry: any, locale: string): Post {

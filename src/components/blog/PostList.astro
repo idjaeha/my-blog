@@ -11,16 +11,26 @@ interface Props {
 const { posts, locale } = Astro.props;
 ---
 
-{
-  posts.length > 0 ? (
-    <div class="grid gap-4">
-      {posts.map((post) => (
-        <PostCard post={post} locale={locale} />
-      ))}
-    </div>
-  ) : (
-    <p class="py-12 text-center text-muted-foreground">
-      {t("blog.noPosts", locale)}
-    </p>
-  )
-}
+<div id="post-list">
+  {
+    posts.length > 0 ? (
+      <div class="grid gap-4" id="post-grid">
+        {posts.map((post) => (
+          <div data-category={post.category}>
+            <PostCard post={post} locale={locale} />
+          </div>
+        ))}
+      </div>
+    ) : (
+      <p class="py-12 text-center text-muted-foreground">
+        {t("blog.noPosts", locale)}
+      </p>
+    )
+  }
+  <p
+    id="no-posts-message"
+    class="hidden py-12 text-center text-muted-foreground"
+  >
+    {t("blog.noPosts", locale)}
+  </p>
+</div>
