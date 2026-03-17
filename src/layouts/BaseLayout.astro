@@ -6,6 +6,7 @@ import Footer from "@/components/layout/Footer.astro";
 import { type Locale, t, getLocalizedPath } from "@/i18n";
 import ThemeToggle from "@/components/islands/ThemeToggle";
 import MobileNav from "@/components/islands/MobileNav";
+import Analytics from "@vercel/analytics/astro";
 
 interface Props {
   title: string;
@@ -52,6 +53,7 @@ const mobileNavLinks = [
       alternateLocale={alternateLocale}
       alternatePath={alternatePath}
     />
+    <Analytics />
   </head>
   <body
     class="min-h-dvh flex flex-col bg-background text-foreground antialiased"
