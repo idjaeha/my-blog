@@ -1,7 +1,3 @@
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
-nvm use 2>/dev/null
-
 pnpm exec lint-staged
 pnpm typecheck
 
@@ -11,6 +7,7 @@ if [ -n "$STAGED_MD" ]; then
   pnpm validate:mermaid $STAGED_MD
 fi
 
-if git diff --cached --name-only | grep -q '^mcp-server/src/'; then
+MCP_CHANGED=$(git diff --cached --name-only | grep '^mcp-server/src/' || true)
+if [ -n "$MCP_CHANGED" ]; then
   cd mcp-server && tsc --noEmit
 fi
