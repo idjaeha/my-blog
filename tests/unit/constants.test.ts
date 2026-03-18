@@ -13,7 +13,8 @@ describe("SITE", () => {
   it("has string values", () => {
     expect(typeof SITE.title).toBe("string");
     expect(typeof SITE.url).toBe("string");
-    expect(typeof SITE.author).toBe("string");
+    expect(typeof SITE.author).toBe("object");
+    expect(typeof SITE.author.name).toBe("string");
   });
 
   it("defaultLocale is ko", () => {

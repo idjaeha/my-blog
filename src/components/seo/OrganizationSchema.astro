@@ -1,0 +1,32 @@
+---
+import { SITE } from "@/lib/constants";
+
+const organizationSchema = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: SITE.title,
+  url: SITE.url,
+  logo: `${SITE.url}/favicon.svg`,
+  description: SITE.description,
+  ...(SITE.author.social?.github && {
+    sameAs: [
+      SITE.author.social.github.startsWith("http")
+        ? SITE.author.social.github
+        : `https://github.com/${SITE.author.social.github}`,
+      ...(SITE.author.social.twitter
+        ? [
+            SITE.author.social.twitter.startsWith("http")
+              ? SITE.author.social.twitter
+              : `https://twitter.com/${SITE.author.social.twitter.replace("@", "")}`,
+          ]
+        : []),
+      ...(SITE.author.social.linkedin ? [SITE.author.social.linkedin] : []),
+    ].filter(Boolean),
+  }),
+};
+---
+
+<script
+  type="application/ld+json"
+  set:html={JSON.stringify(organizationSchema)}
+/>

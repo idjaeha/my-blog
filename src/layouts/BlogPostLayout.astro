@@ -2,7 +2,7 @@
 import { Image } from "astro:assets";
 import type { ImageMetadata } from "astro";
 import BaseLayout from "@/layouts/BaseLayout.astro";
-import { type Locale, t } from "@/i18n";
+import { type Locale, t, getLocalizedPath } from "@/i18n";
 import { CATEGORIES, SITE } from "@/lib/constants";
 import { formatDate, getReadingTime } from "@/lib/utils";
 import TableOfContents from "@/components/islands/TableOfContents";
@@ -19,6 +19,8 @@ interface Props {
     image?: string;
     coverImage?: ImageMetadata;
     draft?: boolean;
+    hasTranslations?: string[];
+    translatedFrom?: string;
   };
   locale: Locale;
   rawContent?: string;
@@ -34,21 +36,91 @@ const categoryLabel =
   CATEGORIES[frontmatter.category]?.[locale] ?? frontmatter.category;
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
 
+// Translation links
+const alternateLocale: Locale = locale === "ko" ? "en" : "ko";
+const hasAlternateTranslation =
+  frontmatter.hasTranslations?.includes(alternateLocale);
+const alternateUrl = hasAlternateTranslation
+  ? Astro.url.pathname.replace(
+      locale === "en" ? "/en" : "",
+      locale === "en" ? "" : "/en",
+    )
+  : null;
+
+const ogImageURL = frontmatter.image
+  ? new URL(frontmatter.image, Astro.site).href
+  : new URL("/og-default.png", Astro.site).href;
+
 const jsonLd = {
   "@context": "https://schema.org",
-  "@type": "BlogPosting",
+  "@type": frontmatter.category === "tutorial" ? "TechArticle" : "BlogPosting",
   headline: frontmatter.title,
   description: frontmatter.description,
   datePublished: pubDate.toISOString(),
   dateModified: updatedDate ? updatedDate.toISOString() : pubDate.toISOString(),
   author: {
     "@type": "Person",
-    name: SITE.author,
+    name: SITE.author.name,
+    ...(SITE.author.url && { url: SITE.author.url }),
+    ...(SITE.author.social && {
+      sameAs: [
+        SITE.author.social.github?.startsWith("http")
+          ? SITE.author.social.github
+          : SITE.author.social.github
+            ? `https://github.com/${SITE.author.social.github}`
+            : null,
+        SITE.author.social.twitter?.startsWith("http")
+          ? SITE.author.social.twitter
+          : SITE.author.social.twitter
+            ? `https://twitter.com/${SITE.author.social.twitter.replace("@", "")}`
+            : null,
+        SITE.author.social.linkedin,
+      ].filter(Boolean),
+    }),
   },
+  publisher: {
+    "@type": "Organization",
+    name: SITE.title,
+    logo: {
+      "@type": "ImageObject",
+      url: new URL("/favicon.svg", Astro.site).href,
+    },
+  },
+  image: {
+    "@type": "ImageObject",
+    url: ogImageURL,
+  },
+  ...(frontmatter.tags &&
+    frontmatter.tags.length > 0 && {
+      keywords: frontmatter.tags.join(", "),
+    }),
+  articleSection: categoryLabel,
+  inLanguage: locale === "ko" ? "ko-KR" : "en-US",
   mainEntityOfPage: {
     "@type": "WebPage",
     "@id": canonicalURL.href,
   },
+  // Translation information
+  ...(frontmatter.translatedFrom && {
+    translationOfWork: {
+      "@type":
+        frontmatter.category === "tutorial" ? "TechArticle" : "BlogPosting",
+      "@id": new URL(
+        `/${frontmatter.translatedFrom.replace(/^ko\//, "")}`,
+        Astro.site,
+      ).href,
+      inLanguage: "ko-KR",
+    },
+  }),
+  ...(hasAlternateTranslation &&
+    alternateUrl && {
+      workTranslation: {
+        "@type":
+          frontmatter.category === "tutorial" ? "TechArticle" : "BlogPosting",
+        "@id": new URL(alternateUrl, Astro.site).href,
+        inLanguage: alternateLocale === "ko" ? "ko-KR" : "en-US",
+      },
+    }),
 };
 ---
 
@@ -60,6 +132,9 @@ const jsonLd = {
   publishedDate={pubDate.toISOString()}
   updatedDate={updatedDate?.toISOString()}
   locale={locale}
+  tags={frontmatter.tags}
+  category={categoryLabel}
+  draft={frontmatter.draft}
 >
   <div
     class="relative mx-auto max-w-5xl xl:grid xl:grid-cols-[1fr_200px] xl:gap-8 xl:px-4"
@@ -123,6 +198,44 @@ const jsonLd = {
           )
         }
       </header>
+
+      {
+        hasAlternateTranslation && alternateUrl && (
+          <div class="mb-6 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+            <div class="flex items-center gap-2 text-sm">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="opacity-70"
+              >
+                <path d="M5 8h14M5 12h14M5 16h14" />
+                <path d="M9 3v18" />
+              </svg>
+              <span class="opacity-70">
+                {locale === "ko"
+                  ? "This post is also available in English:"
+                  : "이 글은 한국어로도 읽을 수 있습니다:"}
+              </span>
+              <a
+                href={alternateUrl}
+                class="font-medium text-primary underline decoration-primary/50 underline-offset-2 transition-colors hover:decoration-primary"
+              >
+                {t(
+                  locale === "ko" ? "blog.readInEnglish" : "blog.readInKorean",
+                  locale,
+                )}
+              </a>
+            </div>
+          </div>
+        )
+      }
 
       {
         frontmatter.coverImage && (

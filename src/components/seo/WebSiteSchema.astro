@@ -1,0 +1,33 @@
+---
+import { SITE } from "@/lib/constants";
+
+interface Props {
+  locale?: "ko" | "en";
+}
+
+const { locale = "ko" } = Astro.props;
+
+const websiteSchema = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: SITE.title,
+  description: SITE.description,
+  url: SITE.url,
+  inLanguage: locale === "ko" ? "ko-KR" : "en-US",
+  publisher: {
+    "@type": "Person",
+    name: SITE.author.name,
+    ...(SITE.author.url && { url: SITE.author.url }),
+  },
+  potentialAction: {
+    "@type": "SearchAction",
+    target: {
+      "@type": "EntryPoint",
+      urlTemplate: `${SITE.url}/search?q={search_term_string}`,
+    },
+    "query-input": "required name=search_term_string",
+  },
+};
+---
+
+<script type="application/ld+json" set:html={JSON.stringify(websiteSchema)} />
