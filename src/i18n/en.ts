@@ -29,6 +29,8 @@ const en: Record<string, string> = {
   "blog.shareOnX": "Share on X",
   "blog.shareOnLinkedIn": "Share on LinkedIn",
   "blog.copyLink": "Copy link",
+  "blog.readInEnglish": "Read in English",
+  "blog.readInKorean": "한국어로 읽기",
   "footer.rights": "All rights reserved.",
 };
 
