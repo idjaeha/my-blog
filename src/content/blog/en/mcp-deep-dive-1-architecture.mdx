@@ -1,0 +1,109 @@
+---
+title: "MCP Deep Dive Part 1 — Concepts and Architecture"
+description: >-
+  An explanation of what Model Context Protocol is and how the three layers—Host, Protocol, and Server—work together, focusing on request flow.
+category: article
+tags:
+  - mcp
+  - ai
+  - protocol
+  - architecture
+publishedDate: "2026-03-15T13:34:00+09:00"
+draft: false
+series: MCP Deep Dive
+seriesOrder: 1
+translatedFrom: "ko/mcp-deep-dive-1-architecture"
+translationStatus: "draft"
+---
+
+import Callout from "@/components/mdx/Callout";
+import LinkCard from "@/components/mdx/LinkCard";
+import MermaidDiagram from "@/components/mdx/MermaidDiagram";
+
+## Why MCP is Needed
+
+For AI apps to integrate with external services, traditionally each service required individual API integration. To connect Jira to Claude, you'd need to integrate both the Anthropic API and Jira API separately, and to connect Jira to Cursor, you'd have to build it all over again from scratch.
+
+MCP (Model Context Protocol) is a **standard connector** that solves this problem. It's easiest to understand with a USB-C analogy. There was a time when each device needed a different cable, but now USB-C connects everything—similarly, if Atlassian builds one MCP Server, it works with Claude, Cursor, Copilot, and any other AI app.
+
+<Callout type="info" title="MCP's Core Value">
+  MCP's goal is to reduce integration costs between AI apps and external
+  services from "N × M" to "N + M". Service providers only need to build one MCP
+  Server, and AI app developers only need to build one MCP Client.
+</Callout>
+
+## Three Core Components
+
+The MCP architecture consists of three layers: Host, Protocol, and Server.
+
+### Host Application (MCP Client)
+
+AI apps like Claude and Cursor fall into this category. They receive natural language requests from users, determine which MCP Server to use, and make the calls. They have an embedded MCP Client that handles protocol communication.
+
+### MCP Protocol
+
+This is the communication standard between Host and Server. It uses JSON-RPC 2.0 for message exchange, with transport methods varying by environment.
+
+- **stdio** — Local inter-process communication (runs server as subprocess)
+- **Streamable HTTP** — Remote server communication (HTTP POST/GET + optional SSE)
+
+### MCP Server
+
+This is the side that provides actual functionality. It can expose three types:
+
+| Type          | Description                   | Examples                      |
+| ------------- | ----------------------------- | ----------------------------- |
+| **Tools**     | Functions that AI can execute | `jira_search`, `create_issue` |
+| **Resources** | Read-only data/files          | File system, DB schema        |
+| **Prompts**   | Reusable prompt templates     | Code review template          |
+
+## Overall Architecture
+
+<MermaidDiagram
+  client:visible
+  chart={`graph LR
+    U[User] --> H[Host App\nClaude / Cursor]
+    H <--> P[MCP Protocol\nJSON-RPC 2.0]
+    P <--> S1[MCP Server\nAtlassian]
+    P <--> S2[MCP Server\nGitHub]
+    P <--> S3[MCP Server\nFilesystem]`}
+/>
+
+## Actual Request Flow
+
+Here's how a request like "Search Jira issues" is processed step by step.
+
+### Step 1 — Connection Initialization
+
+When the MCP Client starts, it performs an `initialize` handshake with the server. At this point, it receives the list of tools and resources the server provides and injects them into the LLM's system prompt. This is how Claude "knows" which tools it can use.
+
+### Step 2 — Tool Calling Loop
+
+When the LLM decides to use a specific tool, it outputs a `tool_use` block as structured output. The Host converts this to the MCP protocol format and sends it to the server, then passes the result back to the LLM as a `tool_result`. This loop can repeat, which is why it's also called an "agentic loop".
+
+```
+User → LLM → tool_use → MCP Server → External API → tool_result → LLM → User
+```
+
+### Step 3 — Final Response
+
+After receiving all tool_results, the LLM processes them into natural language and returns the final response to the user.
+
+<Callout type="tip" title="agentic loop">
+  A tool_call often doesn't end with just one execution. For example, "Find an
+  issue and change the assignee" would execute two tool_calls in sequence:
+  search → update. The LLM planning and executing this sequence autonomously is
+  the essence of the agentic loop.
+</Callout>
+
+## Summary
+
+MCP is a standard protocol that connects AI apps with external services. It operates through a three-layer structure: Host (AI app) → Protocol (JSON-RPC 2.0) → Server (external service), processing requests in the order of connection initialization → tool_use loop → final response.
+
+The next part covers **what JSON-RPC 2.0 is** at the protocol layer's core, and **how serialization actually works**.
+
+<LinkCard
+  href="/blog/mcp-deep-dive-2-json-rpc"
+  title="MCP Deep Dive Part 2 — JSON-RPC 2.0 and Serialization"
+  description="A detailed explanation of JSON-RPC message structure and the serialization/deserialization process."
+/>

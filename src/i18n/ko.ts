@@ -29,6 +29,8 @@ const ko: Record<string, string> = {
   "blog.shareOnX": "X에 공유",
   "blog.shareOnLinkedIn": "LinkedIn에 공유",
   "blog.copyLink": "링크 복사",
+  "blog.readInEnglish": "Read in English",
+  "blog.readInKorean": "한국어로 읽기",
   "footer.rights": "All rights reserved.",
 };
 

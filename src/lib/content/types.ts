@@ -17,6 +17,11 @@ export interface Post {
   body: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   render: () => Promise<{ Content: any }>;
+
+  // Translation metadata
+  translatedFrom?: string; // Original post reference (e.g., "ko/hello-world")
+  hasTranslations?: string[]; // Available translation locales (e.g., ["en"])
+  translationStatus?: "draft" | "reviewed" | "published"; // Translation review status
 }
 
 export interface ContentService {
