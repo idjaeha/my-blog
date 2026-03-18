@@ -1,12 +1,7 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import {
-  render,
-  screen,
-  fireEvent,
-  act,
-  cleanup,
-} from "@testing-library/react";
+import { render, act, cleanup } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/dom";
 import ThemeToggle from "@/components/islands/ThemeToggle";
 
 describe("ThemeToggle", () => {

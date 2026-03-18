@@ -1,12 +1,7 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, afterEach } from "vitest";
-import {
-  render,
-  screen,
-  fireEvent,
-  act,
-  cleanup,
-} from "@testing-library/react";
+import { render, act, cleanup } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/dom";
 import SearchModal from "@/components/islands/SearchModal";
 
 describe("SearchModal", () => {
