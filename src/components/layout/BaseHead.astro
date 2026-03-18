@@ -11,6 +11,9 @@ interface Props {
   locale?: "ko" | "en";
   alternateLocale?: "ko" | "en";
   alternatePath?: string;
+  tags?: string[];
+  category?: string;
+  draft?: boolean;
 }
 
 const {
@@ -23,6 +26,9 @@ const {
   locale = "ko",
   alternateLocale,
   alternatePath,
+  tags,
+  category,
+  draft = false,
 } = Astro.props;
 
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
@@ -37,6 +43,19 @@ const ogLocale = locale === "ko" ? "ko_KR" : "en_US";
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <title>{title}</title>
 <meta name="description" content={description} />
+<meta name="author" content={SITE.author.name} />
+{tags && tags.length > 0 && <meta name="keywords" content={tags.join(", ")} />}
+{draft && <meta name="robots" content="noindex, nofollow" />}
+<meta
+  name="theme-color"
+  content="#ffffff"
+  media="(prefers-color-scheme: light)"
+/>
+<meta
+  name="theme-color"
+  content="#0a0a0a"
+  media="(prefers-color-scheme: dark)"
+/>
 <link rel="canonical" href={canonicalURL.href} />
 
 <!-- Open Graph -->
@@ -46,12 +65,38 @@ const ogLocale = locale === "ko" ? "ko_KR" : "en_US";
 <meta property="og:description" content={description} />
 <meta property="og:image" content={ogImageURL.href} />
 <meta property="og:locale" content={ogLocale} />
+<meta property="og:site_name" content={SITE.title} />
+{
+  type === "article" && SITE.author.url && (
+    <meta property="article:author" content={SITE.author.url} />
+  )
+}
+{
+  type === "article" && category && (
+    <meta property="article:section" content={category} />
+  )
+}
+{
+  type === "article" &&
+    tags &&
+    tags.map((tag) => <meta property="article:tag" content={tag} />)
+}
 
 <!-- Twitter -->
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content={title} />
 <meta name="twitter:description" content={description} />
 <meta name="twitter:image" content={ogImageURL.href} />
+{
+  SITE.author.social?.twitter && (
+    <meta name="twitter:site" content={SITE.author.social.twitter} />
+  )
+}
+{
+  SITE.author.social?.twitter && (
+    <meta name="twitter:creator" content={SITE.author.social.twitter} />
+  )
+}
 
 <!-- Article dates -->
 {
@@ -61,16 +106,33 @@ const ogLocale = locale === "ko" ? "ko_KR" : "en_US";
 }
 {updatedDate && <meta property="article:modified_time" content={updatedDate} />}
 
-<!-- Alternate language -->
+<!-- Alternate language (hreflang) -->
+<!-- Current page language -->
+<link
+  rel="alternate"
+  hreflang={locale === "ko" ? "ko" : "en"}
+  href={canonicalURL.href}
+/>
+
+<!-- Alternate language version (if exists) -->
 {
   alternateLocale && alternatePath && (
     <link
       rel="alternate"
-      hreflang={alternateLocale}
+      hreflang={alternateLocale === "ko" ? "ko" : "en"}
       href={new URL(alternatePath, Astro.site).href}
     />
   )
 }
+
+<!-- x-default: use Korean as default -->
+<link
+  rel="alternate"
+  hreflang="x-default"
+  href={locale === "ko"
+    ? canonicalURL.href
+    : new URL(Astro.url.pathname.replace(/^\/en/, "") || "/", Astro.site).href}
+/>
 
 <!-- RSS -->
 <link

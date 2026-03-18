@@ -17,7 +17,7 @@ const rssPath = locale === "ko" ? "/rss.xml" : "/en/rss.xml";
   >
     <p>
       &copy; {currentYear}
-      {SITE.author}. {t("footer.rights", locale)}
+      {SITE.author.name}. {t("footer.rights", locale)}
     </p>
     <a
       href={rssPath}

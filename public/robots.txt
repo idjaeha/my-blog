@@ -1,0 +1,50 @@
+# robots.txt for my-blog
+
+# Allow all search engines and AI crawlers
+User-agent: *
+Allow: /
+
+# AI Crawlers - OpenAI
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+# AI Crawlers - Anthropic
+User-agent: Claude-Web
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+# AI Crawlers - Google
+User-agent: Google-Extended
+Allow: /
+
+# AI Crawlers - Perplexity
+User-agent: PerplexityBot
+Allow: /
+
+# AI Crawlers - Common Crawl
+User-agent: CCBot
+Allow: /
+
+# Block access to draft posts (if you organize them in a specific directory)
+# User-agent: *
+# Disallow: /drafts/
+
+# Block access to admin or private areas if any
+# User-agent: *
+# Disallow: /admin/
+
+# Sitemaps
+Sitemap: https://my-blog.site/sitemap-index.xml
+Sitemap: https://my-blog.site/sitemap-0.xml
+
+# Crawl delay (optional, adjust if needed)
+# Crawl-delay: 1
+
+# Additional information
+# This blog welcomes AI crawlers for learning and indexing purposes.
+# Content is available under the author's copyright unless otherwise specified.

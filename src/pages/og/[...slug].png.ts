@@ -43,7 +43,7 @@ export async function GET(context: APIContext) {
   const png = await generateOgImage({
     title,
     badge: categoryLabel,
-    subtitle: SITE.author,
+    subtitle: SITE.author.name,
   });
 
   return new Response(png as unknown as BodyInit, {
