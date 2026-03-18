@@ -1,0 +1,366 @@
+---
+title: Volta vs NVM — Node.js 버전 관리, 어떤 도구를 선택할까?
+description: >-
+  Git hooks에서 발생한 NVM 이슈를 해결하며 알게 된 Volta의 장점. NVM과 Volta의 근본적인 차이점과
+  왜 Volta가 더 나은 선택인지 실제 경험을 바탕으로 정리합니다.
+category: article
+tags:
+  - nodejs
+  - volta
+  - nvm
+  - tooling
+  - devops
+  - developer-experience
+publishedDate: "2026-03-19T00:00:00+09:00"
+draft: false
+---
+
+프로젝트에서 Git hooks를 설정하다가 이상한 문제를 만났다.
+모든 검사는 로컬에서 통과하는데, `git commit`만 하면 `exit code 3`으로 실패하는 것이다.
+
+```bash
+husky - pre-commit script failed (code 3)
+```
+
+원인을 찾아보니 NVM(Node Version Manager)이 문제였다.
+더 정확히는 NVM의 동작 방식이 Git hooks의 `sh -e` 모드와 충돌한 것이다.
+
+이 문제를 해결하며 Volta라는 대안을 알게 되었고, 마이그레이션 후 모든 문제가 깔끔하게 해결되었다.
+이 글에서는 NVM과 Volta의 차이점, 그리고 왜 Volta를 권장하는지 정리한다.
+
+---
+
+## NVM이란 무엇인가?
+
+[NVM(Node Version Manager)](https://github.com/nvm-sh/nvm)은 Node.js 버전을 관리하는 가장 유명한 도구다.
+
+```bash
+# NVM 설치
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+
+# Node.js 설치
+nvm install 22
+nvm use 22
+
+# 프로젝트별 버전 지정
+echo "22" > .nvmrc
+nvm use  # .nvmrc 읽어서 버전 전환
+```
+
+### NVM의 동작 방식
+
+NVM은 **쉘 함수**로 구현되어 있다.
+`nvm use`를 실행하면 현재 쉘의 `PATH` 환경변수를 직접 수정한다.
+
+```bash
+# nvm use 실행 전
+echo $PATH
+# /usr/local/bin:/usr/bin:/bin
+
+# nvm use 22 실행 후
+echo $PATH
+# /Users/username/.nvm/versions/node/v22.0.0/bin:/usr/local/bin:/usr/bin:/bin
+```
+
+이 방식은 간단하지만 몇 가지 문제가 있다:
+
+1. **쉘 초기화 필요**: `.bashrc`, `.zshrc`에 NVM 초기화 코드를 추가해야 함
+2. **쉘 시작 지연**: 매번 쉘을 열 때마다 NVM을 로드하므로 느림
+3. **환경 의존성**: 현재 쉘 세션에만 영향을 미침
+
+---
+
+## Volta는 무엇이 다른가?
+
+[Volta](https://volta.sh/)는 Rust로 작성된 **빠르고 신뢰할 수 있는** Node.js 버전 관리 도구다.
+
+```bash
+# Volta 설치
+curl https://get.volta.sh | bash
+
+# Node.js 설치
+volta install node@22
+volta install pnpm
+
+# 프로젝트별 버전 고정
+volta pin node@22
+volta pin pnpm@10
+```
+
+### Volta의 핵심 차이점
+
+Volta는 NVM과 **근본적으로 다른 방식**으로 동작한다.
+
+#### 1. **바이너리 심링크 + PATH 관리**
+
+Volta는 쉘 함수가 아니라 **실제 실행 파일(shim)**을 사용한다.
+
+```bash
+which node
+# /Users/username/.volta/bin/node
+
+ls -la ~/.volta/bin/node
+# lrwxr-xr-x  1 username  staff  34 Mar 19 00:00 /Users/username/.volta/bin/node -> ../volta
+```
+
+- `~/.volta/bin`을 `PATH`에 **한 번만** 추가하면 끝
+- 쉘을 열 때마다 NVM 초기화할 필요 없음
+- `volta`라는 단일 바이너리가 모든 명령어를 가로챔
+
+#### 2. **프로젝트별 자동 전환**
+
+가장 강력한 기능은 **자동 버전 전환**이다.
+
+```json
+// package.json
+{
+  "volta": {
+    "node": "22.12.0",
+    "pnpm": "10.32.1"
+  }
+}
+```
+
+프로젝트 디렉토리로 이동하면 **자동으로** 올바른 버전을 사용한다.
+`nvm use`를 실행할 필요가 없다.
+
+```bash
+cd /path/to/project-with-node-22
+node --version  # v22.12.0 (자동 전환)
+
+cd /path/to/another-project-with-node-20
+node --version  # v20.0.0 (자동 전환)
+```
+
+#### 3. **NPM 패키지 버전 관리**
+
+Volta는 Node.js뿐만 아니라 **글로벌 NPM 패키지의 버전도 관리**한다.
+
+```bash
+# 프로젝트별로 다른 TypeScript 버전 사용
+cd project-a
+volta install typescript@4.9
+tsc --version  # 4.9.x
+
+cd project-b
+volta install typescript@5.0
+tsc --version  # 5.0.x
+```
+
+NVM에서는 글로벌 패키지가 Node 버전과 함께 설치되므로,
+Node 버전을 바꾸면 글로벌 패키지를 다시 설치해야 한다.
+
+---
+
+## 실제로 겪은 문제 — NVM + Git Hooks
+
+내가 겪은 문제는 이랬다:
+
+```bash
+# .husky/pre-commit
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+nvm use 2>/dev/null
+
+pnpm exec lint-staged
+pnpm typecheck
+```
+
+이 스크립트는 로컬에서는 잘 동작했다.
+하지만 `git commit`을 실행하면 **exit code 3**으로 실패했다.
+
+### 문제의 원인
+
+Husky는 Git hooks를 `sh -e` 모드로 실행한다.
+이 모드에서는 **non-zero exit code를 반환하면 즉시 종료**된다.
+
+```bash
+# NVM의 nvm use는 exit code 3을 반환
+# (이미 사용 중인 버전일 때)
+nvm use 2>/dev/null
+echo $?  # 3
+
+# sh -e 모드에서는 이것이 에러로 취급됨
+sh -e -c "nvm use 2>/dev/null; echo 'done'"
+# (스크립트 즉시 종료, 'done' 출력 안 됨)
+```
+
+`nvm use`가 exit code 3을 반환하는 것은 에러가 아니다.
+"요청한 버전이 이미 활성화되어 있다"는 의미일 뿐이다.
+
+하지만 `sh -e`는 이를 에러로 취급하고 스크립트를 중단한다.
+
+### || true로도 해결 안 됨
+
+처음에는 `|| true`를 붙여봤다.
+
+```bash
+nvm use 2>/dev/null || true
+```
+
+하지만 여전히 실패했다.
+NVM 스크립트 내부 어딘가에서 `exit 3`을 직접 호출하기 때문이다.
+
+### Volta로 전환 → 문제 해결
+
+Git hooks에서 NVM 초기화를 완전히 제거하고 Volta를 사용하니
+모든 문제가 사라졌다.
+
+```bash
+# .husky/pre-commit (after)
+pnpm exec lint-staged
+pnpm typecheck
+```
+
+Volta는 `PATH`에 한 번만 추가하면 되므로,
+**Git hooks에서 별도의 초기화가 필요 없다**.
+
+---
+
+## 성능 비교
+
+### 쉘 시작 시간
+
+```bash
+# NVM
+time zsh -c "exit"
+# 0.15s ~ 0.20s
+
+# Volta
+time zsh -c "exit"
+# 0.03s ~ 0.05s
+```
+
+Volta는 쉘 초기화 오버헤드가 거의 없다.
+
+### 버전 전환 시간
+
+```bash
+# NVM
+time nvm use 22
+# 0.5s ~ 1.0s
+
+# Volta (자동 전환)
+time cd project && node --version
+# 즉시 (오버헤드 없음)
+```
+
+Volta는 디렉토리 이동만으로 버전이 전환된다.
+
+---
+
+## 마이그레이션 가이드
+
+### 1. Volta 설치
+
+```bash
+curl https://get.volta.sh | bash
+```
+
+### 2. 현재 Node 버전 확인
+
+```bash
+node --version  # v22.12.0
+pnpm --version  # 10.32.1
+```
+
+### 3. Volta로 동일 버전 설치
+
+```bash
+volta install node@22.12.0
+volta install pnpm@10.32.1
+```
+
+### 4. 프로젝트에 버전 고정
+
+```bash
+cd /path/to/your/project
+volta pin node@22.12.0
+volta pin pnpm@10.32.1
+```
+
+이 명령은 `package.json`에 자동으로 추가한다:
+
+```json
+{
+  "volta": {
+    "node": "22.12.0",
+    "pnpm": "10.32.1"
+  }
+}
+```
+
+### 5. .nvmrc 제거 (선택)
+
+Volta를 팀 표준으로 정했다면:
+
+```bash
+rm .nvmrc
+git add .nvmrc package.json
+git commit -m "chore: migrate from NVM to Volta"
+```
+
+NVM 사용자와 공존하려면 둘 다 유지해도 된다.
+
+### 6. Git hooks 정리
+
+```bash
+# .husky/pre-commit, .husky/pre-push에서
+# NVM 초기화 코드 제거
+
+# Before
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+nvm use 2>/dev/null
+
+pnpm lint
+
+# After
+pnpm lint  # Volta가 자동으로 올바른 버전 사용
+```
+
+---
+
+## 언제 NVM을 쓸까?
+
+Volta가 대부분의 경우 더 나은 선택이지만,
+여전히 NVM이 필요한 경우도 있다:
+
+1. **Windows 네이티브 지원 필요**
+   Volta는 WSL에서는 동작하지만 Windows 네이티브는 실험적 지원
+
+2. **매우 오래된 Node 버전 필요**
+   예를 들어 Node 6, 8 같은 레거시 버전
+
+3. **기존 팀 컨벤션**
+   팀 전체가 NVM을 쓰고 있고 바꿀 이유가 없다면
+
+---
+
+## 결론
+
+Volta는 단순한 NVM 대체재가 아니다.
+**근본적으로 다른 접근법**으로 개발자 경험을 개선한다.
+
+### Volta의 핵심 장점
+
+1. ✅ **빠르다** — 쉘 초기화 오버헤드 없음
+2. ✅ **자동이다** — 디렉토리 이동만으로 버전 전환
+3. ✅ **신뢰할 수 있다** — Git hooks, CI 환경에서 문제 없음
+4. ✅ **패키지 관리** — Node뿐만 아니라 pnpm, yarn도 관리
+5. ✅ **프로젝트 격리** — 글로벌 패키지도 프로젝트별로 관리
+
+내가 겪은 Git hooks 이슈는 NVM의 근본적인 설계 문제였다.
+Volta로 전환하면서 이런 문제를 완전히 피할 수 있었고,
+동시에 **더 빠르고 편리한** 개발 환경을 얻었다.
+
+새 프로젝트를 시작한다면 Volta를 추천한다.
+기존 프로젝트도 마이그레이션이 간단하니 한번 시도해볼 만하다.
+
+---
+
+## 참고 자료
+
+- [Volta 공식 문서](https://volta.sh/)
+- [NVM GitHub](https://github.com/nvm-sh/nvm)
+- [Volta가 Fast한 이유 (공식 블로그)](https://blog.volta.sh/2020/09/15/why-volta-fast/)
