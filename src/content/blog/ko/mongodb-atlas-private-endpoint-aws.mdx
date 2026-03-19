@@ -53,7 +53,7 @@ flowchart TB
 Atlas Console → Network Access → Private Endpoints → AWS → 리전 선택 후 생성하면 아래 형태의 서비스 이름이 발급된다.
 
 ```
-com.amazonaws.vpce.ap-northeast-2.vpce-svc-01c8a34498a800fa3
+com.amazonaws.vpce.ap-northeast-2.vpce-svc-0123456789abcdef0
 ```
 
 ### AWS에서 Interface Endpoint 생성
@@ -62,7 +62,7 @@ com.amazonaws.vpce.ap-northeast-2.vpce-svc-01c8a34498a800fa3
 aws ec2 create-vpc-endpoint \
   --vpc-id vpc-xxxxxxxx \
   --vpc-endpoint-type Interface \
-  --service-name com.amazonaws.vpce.ap-northeast-2.vpce-svc-01c8a34498a800fa3 \
+  --service-name com.amazonaws.vpce.ap-northeast-2.vpce-svc-0123456789abcdef0 \
   --subnet-ids subnet-xxxxxxxx \
   --security-group-ids sg-xxxxxxxx
 ```
@@ -75,7 +75,7 @@ Interface Endpoint 생성 시 `--private-dns-enabled` 옵션을 시도하면 아
 
 ```
 Private DNS can't be enabled because the service
-com.amazonaws.vpce.ap-northeast-2.vpce-svc-01c8a34498a800fa3
+com.amazonaws.vpce.ap-northeast-2.vpce-svc-0123456789abcdef0
 does not provide a private DNS name.
 ```
 
@@ -89,7 +89,7 @@ does not provide a private DNS name.
 
 ```bash
 # 이렇게 하면 No answer
-nslookup deteamcluster-pl-0.cqph4.mongodb.net
+nslookup mycluster-pl-0.abc12.mongodb.net
 ```
 
 Atlas Private Endpoint는 **SRV 레코드** 기반으로 동작한다. 올바른 확인 순서는 아래와 같다.
@@ -97,15 +97,15 @@ Atlas Private Endpoint는 **SRV 레코드** 기반으로 동작한다. 올바른
 **1단계 — SRV 레코드 조회**
 
 ```bash
-nslookup -type=SRV _mongodb._tcp.deteamcluster-pl-0.cqph4.mongodb.net
+nslookup -type=SRV _mongodb._tcp.mycluster-pl-0.abc12.mongodb.net
 ```
 
 정상이면 아래처럼 포트 3개가 나온다.
 
 ```
-_mongodb._tcp.deteamcluster-pl-0.cqph4.mongodb.net  service = 0 0 1024 pl-0-ap-northeast-2.cqph4.mongodb.net.
-_mongodb._tcp.deteamcluster-pl-0.cqph4.mongodb.net  service = 0 0 1025 pl-0-ap-northeast-2.cqph4.mongodb.net.
-_mongodb._tcp.deteamcluster-pl-0.cqph4.mongodb.net  service = 0 0 1026 pl-0-ap-northeast-2.cqph4.mongodb.net.
+_mongodb._tcp.mycluster-pl-0.abc12.mongodb.net  service = 0 0 1024 pl-0-ap-northeast-2.abc12.mongodb.net.
+_mongodb._tcp.mycluster-pl-0.abc12.mongodb.net  service = 0 0 1025 pl-0-ap-northeast-2.abc12.mongodb.net.
+_mongodb._tcp.mycluster-pl-0.abc12.mongodb.net  service = 0 0 1026 pl-0-ap-northeast-2.abc12.mongodb.net.
 ```
 
 포트 1024 / 1025 / 1026은 Atlas가 replica set 노드별로 로드밸런서에서 할당하는 고유 포트다. 27017이 아니다.
@@ -113,17 +113,17 @@ _mongodb._tcp.deteamcluster-pl-0.cqph4.mongodb.net  service = 0 0 1026 pl-0-ap-n
 **2단계 — hostname → private IP resolve 확인**
 
 ```bash
-nslookup pl-0-ap-northeast-2.cqph4.mongodb.net
+nslookup pl-0-ap-northeast-2.abc12.mongodb.net
 ```
 
 정상이면 `172.31.x.x` 같은 private IP가 나온다.
 
 ```
-pl-0-ap-northeast-2.cqph4.mongodb.net
-  canonical name = vpce-04284ffcac3cc4d56-pmuap28o.vpce-svc-01c8a34498a800fa3.ap-northeast-2.vpce.amazonaws.com.
+pl-0-ap-northeast-2.abc12.mongodb.net
+  canonical name = vpce-0123456789abcdef0-pmuap28o.vpce-svc-0123456789abcdef0.ap-northeast-2.vpce.amazonaws.com.
 
-Address: 172.31.101.192
-Address: 172.31.127.196
+Address: 172.31.xx.xx
+Address: 172.31.yy.yy
 ```
 
 public IP가 나오면 DNS가 ENI로 붙지 않은 것이다.
@@ -131,9 +131,9 @@ public IP가 나오면 DNS가 ENI로 붙지 않은 것이다.
 **3단계 — 포트 연결 확인**
 
 ```bash
-telnet pl-0-ap-northeast-2.cqph4.mongodb.net 1024
-telnet pl-0-ap-northeast-2.cqph4.mongodb.net 1025
-telnet pl-0-ap-northeast-2.cqph4.mongodb.net 1026
+telnet pl-0-ap-northeast-2.abc12.mongodb.net 1024
+telnet pl-0-ap-northeast-2.abc12.mongodb.net 1025
+telnet pl-0-ap-northeast-2.abc12.mongodb.net 1026
 ```
 
 ## 삽질 포인트 3: Security Group 설정 — 핵심
@@ -180,10 +180,10 @@ aws ec2 authorize-security-group-ingress \
 
 ```
 # 일반 (쓰면 안 됨)
-mongodb+srv://admin:***@deteamcluster.cqph4.mongodb.net/
+mongodb+srv://myuser:***@mycluster.abc12.mongodb.net/
 
 # Private Endpoint용 (-pl-0 이 붙는다)
-mongodb+srv://admin:***@deteamcluster-pl-0.cqph4.mongodb.net/
+mongodb+srv://myuser:***@mycluster-pl-0.abc12.mongodb.net/
 ```
 
 ## 정리
