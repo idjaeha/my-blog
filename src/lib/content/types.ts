@@ -5,7 +5,7 @@ export interface Post {
   slug: string;
   title: string;
   description: string;
-  category: "til" | "retrospective" | "article" | "tutorial";
+  category: "til" | "retrospective" | "article" | "tutorial" | "infra";
   tags: string[];
   publishedDate: Date;
   updatedDate?: Date;

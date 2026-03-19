@@ -7,7 +7,13 @@ const blog = defineCollection({
     z.object({
       title: z.string().max(100),
       description: z.string().max(300),
-      category: z.enum(["til", "retrospective", "article", "tutorial"]),
+      category: z.enum([
+        "til",
+        "retrospective",
+        "article",
+        "tutorial",
+        "infra",
+      ]),
       tags: z.array(z.string()).default([]),
       publishedDate: z.coerce.date(),
       updatedDate: z.coerce.date().optional(),

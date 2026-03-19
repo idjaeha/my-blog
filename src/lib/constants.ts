@@ -24,4 +24,5 @@ export const CATEGORIES = {
   retrospective: { ko: "회고", en: "Retrospective" },
   article: { ko: "아티클", en: "Article" },
   tutorial: { ko: "튜토리얼", en: "Tutorial" },
+  infra: { ko: "인프라", en: "Infra" },
 } as const;
