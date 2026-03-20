@@ -1,5 +1,13 @@
 import type { Loader } from "astro/loaders";
 import { createClient } from "@supabase/supabase-js";
+import { unified } from "unified";
+import remarkParse from "remark-parse";
+import remarkGfm from "remark-gfm";
+import remarkRehype from "remark-rehype";
+import rehypeRaw from "rehype-raw";
+import rehypeStringify from "rehype-stringify";
+import { remarkMermaid } from "../lib/remark-mermaid";
+import { remarkCallout } from "../lib/remark-callout";
 
 export function supabaseBlogLoader(): Loader {
   return {
@@ -34,7 +42,23 @@ export function supabaseBlogLoader(): Loader {
         const id = `${post.locale}/${post.slug}`;
         const body = post.body ?? "";
 
-        const rendered = await ctx.renderMarkdown(body);
+        // Process markdown with unified pipeline to ensure plugins are applied
+        const file = await unified()
+          .use(remarkParse)
+          .use(remarkGfm)
+          .use(remarkCallout)
+          .use(remarkMermaid)
+          .use(remarkRehype, { allowDangerousHtml: true })
+          .use(rehypeRaw)
+          .use(rehypeStringify)
+          .process(body);
+
+        const html = String(file);
+
+        const rendered = {
+          html,
+          metadata: {},
+        };
 
         const data = await ctx.parseData({
           id,

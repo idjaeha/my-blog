@@ -18,7 +18,7 @@ import { visit } from "unist-util-visit";
  *   </div>
  */
 
-const ALERT_PATTERN = /^\[!(NOTE|TIP|WARNING|IMPORTANT|CAUTION)\]\s*(.*)?$/i;
+const ALERT_PATTERN = /^\[!(NOTE|TIP|WARNING|IMPORTANT|CAUTION)\]\s*(.*)$/is;
 
 const TYPE_MAP: Record<string, string> = {
   note: "info",

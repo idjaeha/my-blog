@@ -4,6 +4,7 @@ import react from "@astrojs/react";
 import sitemap from "@astrojs/sitemap";
 import vercel from "@astrojs/vercel";
 import tailwindcss from "@tailwindcss/vite";
+import rehypeRaw from "rehype-raw";
 import { remarkMermaid } from "./src/lib/remark-mermaid";
 import { remarkCallout } from "./src/lib/remark-callout";
 
@@ -17,6 +18,7 @@ export default defineConfig({
   },
   markdown: {
     remarkPlugins: [remarkMermaid, remarkCallout],
+    rehypePlugins: [rehypeRaw],
     shikiConfig: {
       themes: {
         light: "github-light",
