@@ -1,46 +1,42 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { parseResult, samplePost } from "./helpers.js";
+
+vi.mock("../../../mcp-server/src/utils/api-client.js", () => ({
+  apiRequest: vi.fn(),
+  toolResponse: (data: unknown, isError = false) => ({
+    content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+    ...(isError && { isError: true }),
+  }),
+}));
+
 import { listPostsTool } from "../../../mcp-server/src/tools/list-posts.js";
-import {
-  createTmpDir,
-  setupContentDir,
-  writePost,
-  cleanupTmpDir,
-  parseResult,
-} from "./helpers.js";
+import { apiRequest } from "../../../mcp-server/src/utils/api-client.js";
+
+const mockApiRequest = vi.mocked(apiRequest);
 
 describe("list-posts", () => {
-  let tmpDir: string;
-  const originalEnv = process.env.BLOG_CONTENT_DIR;
-  const originalCwd = process.cwd();
-
   beforeEach(() => {
-    tmpDir = createTmpDir();
-    setupContentDir(tmpDir, "ko");
-    setupContentDir(tmpDir, "en");
-    process.env.BLOG_CONTENT_DIR = tmpDir;
-    process.chdir(tmpDir);
-  });
-
-  afterEach(() => {
-    process.env.BLOG_CONTENT_DIR = originalEnv;
-    process.chdir(originalCwd);
-    cleanupTmpDir(tmpDir);
+    vi.clearAllMocks();
   });
 
   it("returns empty list when no posts exist", async () => {
+    mockApiRequest.mockResolvedValue({ data: [], error: null, status: 200 });
+
     const result = await listPostsTool.handler({
       locale: "ko",
       limit: 20,
       offset: 0,
     });
     const data = parseResult(result);
-    expect(data.total).toBe(0);
-    expect(data.posts).toEqual([]);
+    expect(data).toEqual([]);
   });
 
   it("lists all posts in a locale", async () => {
-    writePost(tmpDir, "ko", "post-1", { title: "Post 1" });
-    writePost(tmpDir, "ko", "post-2", { title: "Post 2" });
+    const posts = [
+      samplePost({ slug: "post-1", title: "Post 1" }),
+      samplePost({ slug: "post-2", title: "Post 2" }),
+    ];
+    mockApiRequest.mockResolvedValue({ data: posts, error: null, status: 200 });
 
     const result = await listPostsTool.handler({
       locale: "ko",
@@ -48,183 +44,101 @@ describe("list-posts", () => {
       offset: 0,
     });
     const data = parseResult(result);
-    expect(data.total).toBe(2);
-    expect(data.posts).toHaveLength(2);
+    expect(data).toHaveLength(2);
   });
 
-  it("filters by category", async () => {
-    writePost(tmpDir, "ko", "til-post", { category: "til" });
-    writePost(tmpDir, "ko", "article-post", { category: "article" });
+  it("passes category filter to API", async () => {
+    mockApiRequest.mockResolvedValue({ data: [], error: null, status: 200 });
 
-    const result = await listPostsTool.handler({
-      locale: "ko",
-      category: "til",
-      limit: 20,
-      offset: 0,
-    });
-    const data = parseResult(result);
-    expect(data.total).toBe(1);
-    expect(data.posts[0].category).toBe("til");
-  });
-
-  it("filters by tag", async () => {
-    writePost(tmpDir, "ko", "react-post", { tags: ["react", "typescript"] });
-    writePost(tmpDir, "ko", "vue-post", { tags: ["vue"] });
-
-    const result = await listPostsTool.handler({
-      locale: "ko",
-      tag: "react",
-      limit: 20,
-      offset: 0,
-    });
-    const data = parseResult(result);
-    expect(data.total).toBe(1);
-    expect(data.posts[0].slug).toBe("react-post");
-  });
-
-  it("filters by draft status", async () => {
-    writePost(tmpDir, "ko", "published", { draft: false });
-    writePost(tmpDir, "ko", "draft", { draft: true });
-
-    const result = await listPostsTool.handler({
-      locale: "ko",
-      draft: false,
-      limit: 20,
-      offset: 0,
-    });
-    const data = parseResult(result);
-    expect(data.total).toBe(1);
-    expect(data.posts[0].slug).toBe("published");
-  });
-
-  it("sorts by publishedDate descending", async () => {
-    writePost(tmpDir, "ko", "old", { publishedDate: "2024-01-01" });
-    writePost(tmpDir, "ko", "new", { publishedDate: "2025-06-01" });
-    writePost(tmpDir, "ko", "mid", { publishedDate: "2024-06-01" });
-
-    const result = await listPostsTool.handler({
-      locale: "ko",
-      limit: 20,
-      offset: 0,
-    });
-    const data = parseResult(result);
-    expect(data.posts[0].slug).toBe("new");
-    expect(data.posts[1].slug).toBe("mid");
-    expect(data.posts[2].slug).toBe("old");
-  });
-
-  it("paginates with limit", async () => {
-    writePost(tmpDir, "ko", "post-1", { publishedDate: "2025-03-01" });
-    writePost(tmpDir, "ko", "post-2", { publishedDate: "2025-02-01" });
-    writePost(tmpDir, "ko", "post-3", { publishedDate: "2025-01-01" });
-
-    const result = await listPostsTool.handler({
-      locale: "ko",
-      limit: 2,
-      offset: 0,
-    });
-    const data = parseResult(result);
-    expect(data.total).toBe(3);
-    expect(data.posts).toHaveLength(2);
-  });
-
-  it("paginates with offset", async () => {
-    writePost(tmpDir, "ko", "post-1", { publishedDate: "2025-03-01" });
-    writePost(tmpDir, "ko", "post-2", { publishedDate: "2025-02-01" });
-    writePost(tmpDir, "ko", "post-3", { publishedDate: "2025-01-01" });
-
-    const result = await listPostsTool.handler({
-      locale: "ko",
-      limit: 20,
-      offset: 2,
-    });
-    const data = parseResult(result);
-    expect(data.posts).toHaveLength(1);
-    expect(data.posts[0].slug).toBe("post-3");
-  });
-
-  it("combines multiple filters", async () => {
-    writePost(tmpDir, "ko", "match", {
-      category: "til",
-      tags: ["react"],
-      draft: false,
-    });
-    writePost(tmpDir, "ko", "wrong-cat", {
-      category: "article",
-      tags: ["react"],
-      draft: false,
-    });
-    writePost(tmpDir, "ko", "wrong-tag", {
-      category: "til",
-      tags: ["vue"],
-      draft: false,
-    });
-
-    const result = await listPostsTool.handler({
-      locale: "ko",
-      category: "til",
-      tag: "react",
-      draft: false,
-      limit: 20,
-      offset: 0,
-    });
-    const data = parseResult(result);
-    expect(data.total).toBe(1);
-    expect(data.posts[0].slug).toBe("match");
-  });
-
-  it("separates posts by locale", async () => {
-    writePost(tmpDir, "ko", "ko-post", { title: "Korean Post" });
-    writePost(tmpDir, "en", "en-post", { title: "English Post" });
-
-    const koResult = await listPostsTool.handler({
-      locale: "ko",
-      limit: 20,
-      offset: 0,
-    });
-    const enResult = await listPostsTool.handler({
-      locale: "en",
-      limit: 20,
-      offset: 0,
-    });
-
-    expect(parseResult(koResult).total).toBe(1);
-    expect(parseResult(enResult).total).toBe(1);
-  });
-
-  it("returns error for non-existent locale directory", async () => {
     await listPostsTool.handler({
       locale: "ko",
+      category: "til",
       limit: 20,
       offset: 0,
     });
 
-    // ko directory was set up in beforeEach, so this should work.
-    // Let's test with a fresh tmpDir without setup
-    const emptyDir = createTmpDir();
-    process.env.BLOG_CONTENT_DIR = emptyDir;
-    process.chdir(emptyDir);
-
-    const errorResult = await listPostsTool.handler({
-      locale: "ko",
-      limit: 20,
-      offset: 0,
-    });
-
-    expect(errorResult.isError).toBe(true);
-    cleanupTmpDir(emptyDir);
+    expect(mockApiRequest).toHaveBeenCalledWith(
+      "/posts",
+      expect.objectContaining({
+        params: expect.objectContaining({ category: "til" }),
+      }),
+    );
   });
 
-  it("returns correct pagination metadata", async () => {
-    writePost(tmpDir, "ko", "post-1", {});
+  it("passes tag filter to API", async () => {
+    mockApiRequest.mockResolvedValue({ data: [], error: null, status: 200 });
+
+    await listPostsTool.handler({
+      locale: "ko",
+      tag: "react",
+      limit: 20,
+      offset: 0,
+    });
+
+    expect(mockApiRequest).toHaveBeenCalledWith(
+      "/posts",
+      expect.objectContaining({
+        params: expect.objectContaining({ tag: "react" }),
+      }),
+    );
+  });
+
+  it("passes draft filter to API", async () => {
+    mockApiRequest.mockResolvedValue({ data: [], error: null, status: 200 });
+
+    await listPostsTool.handler({
+      locale: "ko",
+      draft: false,
+      limit: 20,
+      offset: 0,
+    });
+
+    expect(mockApiRequest).toHaveBeenCalledWith(
+      "/posts",
+      expect.objectContaining({
+        params: expect.objectContaining({ draft: "false" }),
+      }),
+    );
+  });
+
+  it("passes pagination parameters to API", async () => {
+    mockApiRequest.mockResolvedValue({ data: [], error: null, status: 200 });
+
+    await listPostsTool.handler({ locale: "ko", limit: 5, offset: 10 });
+
+    expect(mockApiRequest).toHaveBeenCalledWith(
+      "/posts",
+      expect.objectContaining({
+        params: expect.objectContaining({ limit: "5", offset: "10" }),
+      }),
+    );
+  });
+
+  it("returns API error", async () => {
+    mockApiRequest.mockResolvedValue({
+      data: null,
+      error: "Internal server error",
+      status: 500,
+    });
 
     const result = await listPostsTool.handler({
       locale: "ko",
-      limit: 5,
+      limit: 20,
       offset: 0,
     });
-    const data = parseResult(result);
-    expect(data.limit).toBe(5);
-    expect(data.offset).toBe(0);
+    expect(result.isError).toBe(true);
+  });
+
+  it("passes locale to API", async () => {
+    mockApiRequest.mockResolvedValue({ data: [], error: null, status: 200 });
+
+    await listPostsTool.handler({ locale: "en", limit: 20, offset: 0 });
+
+    expect(mockApiRequest).toHaveBeenCalledWith(
+      "/posts",
+      expect.objectContaining({
+        params: expect.objectContaining({ locale: "en" }),
+      }),
+    );
   });
 });

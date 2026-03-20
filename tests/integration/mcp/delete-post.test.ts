@@ -1,94 +1,73 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { parseResult } from "./helpers.js";
+
+vi.mock("../../../mcp-server/src/utils/api-client.js", () => ({
+  apiRequest: vi.fn(),
+  toolResponse: (data: unknown, isError = false) => ({
+    content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+    ...(isError && { isError: true }),
+  }),
+}));
+
 import { deletePostTool } from "../../../mcp-server/src/tools/delete-post.js";
-import {
-  createTmpDir,
-  setupContentDir,
-  writePost,
-  cleanupTmpDir,
-  parseResult,
-} from "./helpers.js";
+import { apiRequest } from "../../../mcp-server/src/utils/api-client.js";
+
+const mockApiRequest = vi.mocked(apiRequest);
 
 describe("delete-post", () => {
-  let tmpDir: string;
-  const originalEnv = process.env.BLOG_CONTENT_DIR;
-  const originalCwd = process.cwd();
-
   beforeEach(() => {
-    tmpDir = createTmpDir();
-    setupContentDir(tmpDir, "ko");
-    setupContentDir(tmpDir, "en");
-    process.env.BLOG_CONTENT_DIR = tmpDir;
-    process.chdir(tmpDir);
+    vi.clearAllMocks();
   });
 
-  afterEach(() => {
-    process.env.BLOG_CONTENT_DIR = originalEnv;
-    process.chdir(originalCwd);
-    cleanupTmpDir(tmpDir);
-  });
-
-  it("moves post to _archive directory", async () => {
-    writePost(tmpDir, "ko", "to-delete", { title: "Delete Me" });
+  it("archives a post via DELETE API", async () => {
+    mockApiRequest.mockResolvedValue({
+      data: { message: "Post archived", slug: "to-delete", locale: "ko" },
+      error: null,
+      status: 200,
+    });
 
     const result = await deletePostTool.handler({
       slug: "to-delete",
       locale: "ko",
     });
-
     const data = parseResult(result);
-    expect(data.archived).toBe("ko/to-delete.mdx");
-    expect(data.destination).toBe("_archive/ko-to-delete.mdx");
-  });
-
-  it("removes original file", async () => {
-    writePost(tmpDir, "ko", "remove-check", { title: "Remove Check" });
-
-    await deletePostTool.handler({ slug: "remove-check", locale: "ko" });
-
-    expect(existsSync(join(tmpDir, "ko", "remove-check.mdx"))).toBe(false);
-  });
-
-  it("creates archive file", async () => {
-    writePost(tmpDir, "ko", "archive-check", { title: "Archive Check" });
-
-    await deletePostTool.handler({ slug: "archive-check", locale: "ko" });
-
-    expect(existsSync(join(tmpDir, "_archive", "ko-archive-check.mdx"))).toBe(
-      true,
-    );
-  });
-
-  it("creates _archive directory if not exists", async () => {
-    writePost(tmpDir, "ko", "first-delete", { title: "First Delete" });
-
-    expect(existsSync(join(tmpDir, "_archive"))).toBe(false);
-
-    await deletePostTool.handler({ slug: "first-delete", locale: "ko" });
-
-    expect(existsSync(join(tmpDir, "_archive"))).toBe(true);
+    expect(data.message).toBe("Post archived");
+    expect(mockApiRequest).toHaveBeenCalledWith("/posts/to-delete", {
+      method: "DELETE",
+      params: { locale: "ko" },
+    });
   });
 
   it("returns error for non-existent post", async () => {
+    mockApiRequest.mockResolvedValue({
+      data: null,
+      error: "Post not found",
+      status: 404,
+    });
+
     const result = await deletePostTool.handler({
       slug: "ghost",
       locale: "ko",
     });
-
     expect(result.isError).toBe(true);
   });
 
   it("handles different locales correctly", async () => {
-    writePost(tmpDir, "en", "en-delete", { title: "English Delete" });
+    mockApiRequest.mockResolvedValue({
+      data: { message: "Post archived", slug: "en-delete", locale: "en" },
+      error: null,
+      status: 200,
+    });
 
     const result = await deletePostTool.handler({
       slug: "en-delete",
       locale: "en",
     });
-
     const data = parseResult(result);
-    expect(data.destination).toBe("_archive/en-en-delete.mdx");
-    expect(existsSync(join(tmpDir, "_archive", "en-en-delete.mdx"))).toBe(true);
+    expect(data.locale).toBe("en");
+    expect(mockApiRequest).toHaveBeenCalledWith("/posts/en-delete", {
+      method: "DELETE",
+      params: { locale: "en" },
+    });
   });
 });

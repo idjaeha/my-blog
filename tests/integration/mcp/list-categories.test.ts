@@ -1,97 +1,68 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { parseResult } from "./helpers.js";
+
+vi.mock("../../../mcp-server/src/utils/api-client.js", () => ({
+  apiRequest: vi.fn(),
+  toolResponse: (data: unknown, isError = false) => ({
+    content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+    ...(isError && { isError: true }),
+  }),
+}));
+
 import { listCategoriesTool } from "../../../mcp-server/src/tools/list-categories.js";
-import {
-  createTmpDir,
-  setupContentDir,
-  writePost,
-  cleanupTmpDir,
-  parseResult,
-} from "./helpers.js";
+import { apiRequest } from "../../../mcp-server/src/utils/api-client.js";
+
+const mockApiRequest = vi.mocked(apiRequest);
 
 describe("list-categories", () => {
-  let tmpDir: string;
-  const originalEnv = process.env.BLOG_CONTENT_DIR;
-  const originalCwd = process.cwd();
-
   beforeEach(() => {
-    tmpDir = createTmpDir();
-    setupContentDir(tmpDir, "ko");
-    setupContentDir(tmpDir, "en");
-    process.env.BLOG_CONTENT_DIR = tmpDir;
-    process.chdir(tmpDir);
+    vi.clearAllMocks();
   });
 
-  afterEach(() => {
-    process.env.BLOG_CONTENT_DIR = originalEnv;
-    process.chdir(originalCwd);
-    cleanupTmpDir(tmpDir);
-  });
-
-  it("returns empty list when no posts exist", async () => {
-    const result = await listCategoriesTool.handler({ locale: "ko" });
-    const data = parseResult(result);
-    expect(data.total).toBe(0);
-    expect(data.categories).toEqual([]);
-  });
-
-  it("aggregates categories across posts", async () => {
-    writePost(tmpDir, "ko", "post-1", { category: "article" });
-    writePost(tmpDir, "ko", "post-2", { category: "til" });
+  it("returns categories from API", async () => {
+    const categories = [
+      { name: "article", count: 5 },
+      { name: "til", count: 3 },
+    ];
+    mockApiRequest.mockResolvedValue({
+      data: categories,
+      error: null,
+      status: 200,
+    });
 
     const result = await listCategoriesTool.handler({ locale: "ko" });
     const data = parseResult(result);
-    expect(data.total).toBe(2);
+    expect(data).toHaveLength(2);
+    expect(data[0].name).toBe("article");
+    expect(data[0].count).toBe(5);
   });
 
-  it("counts category occurrences correctly", async () => {
-    writePost(tmpDir, "ko", "post-1", { category: "article" });
-    writePost(tmpDir, "ko", "post-2", { category: "article" });
-    writePost(tmpDir, "ko", "post-3", { category: "til" });
+  it("passes locale to API", async () => {
+    mockApiRequest.mockResolvedValue({ data: [], error: null, status: 200 });
+
+    await listCategoriesTool.handler({ locale: "en" });
+
+    expect(mockApiRequest).toHaveBeenCalledWith("/categories", {
+      params: { locale: "en" },
+    });
+  });
+
+  it("returns empty list when no categories exist", async () => {
+    mockApiRequest.mockResolvedValue({ data: [], error: null, status: 200 });
 
     const result = await listCategoriesTool.handler({ locale: "ko" });
     const data = parseResult(result);
-    const article = data.categories.find(
-      (c: { category: string }) => c.category === "article",
-    );
-    const til = data.categories.find(
-      (c: { category: string }) => c.category === "til",
-    );
-    expect(article.count).toBe(2);
-    expect(til.count).toBe(1);
+    expect(data).toEqual([]);
   });
 
-  it("sorts by count descending", async () => {
-    writePost(tmpDir, "ko", "post-1", { category: "article" });
-    writePost(tmpDir, "ko", "post-2", { category: "article" });
-    writePost(tmpDir, "ko", "post-3", { category: "article" });
-    writePost(tmpDir, "ko", "post-4", { category: "til" });
-
-    const result = await listCategoriesTool.handler({ locale: "ko" });
-    const data = parseResult(result);
-    expect(data.categories[0].category).toBe("article");
-    expect(data.categories[0].count).toBe(3);
-  });
-
-  it("separates categories by locale", async () => {
-    writePost(tmpDir, "ko", "ko-post", { category: "article" });
-    writePost(tmpDir, "en", "en-post-1", { category: "tutorial" });
-    writePost(tmpDir, "en", "en-post-2", { category: "til" });
-
-    const koResult = await listCategoriesTool.handler({ locale: "ko" });
-    const enResult = await listCategoriesTool.handler({ locale: "en" });
-
-    expect(parseResult(koResult).total).toBe(1);
-    expect(parseResult(enResult).total).toBe(2);
-  });
-
-  it("returns error for non-existent locale directory", async () => {
-    const emptyDir = createTmpDir();
-    process.env.BLOG_CONTENT_DIR = emptyDir;
-    process.chdir(emptyDir);
+  it("returns API error", async () => {
+    mockApiRequest.mockResolvedValue({
+      data: null,
+      error: "Server error",
+      status: 500,
+    });
 
     const result = await listCategoriesTool.handler({ locale: "ko" });
     expect(result.isError).toBe(true);
-
-    cleanupTmpDir(emptyDir);
   });
 });

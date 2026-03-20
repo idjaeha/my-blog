@@ -1,116 +1,97 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import matter from "gray-matter";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { parseResult, samplePost } from "./helpers.js";
+
+vi.mock("../../../mcp-server/src/utils/api-client.js", () => ({
+  apiRequest: vi.fn(),
+  toolResponse: (data: unknown, isError = false) => ({
+    content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+    ...(isError && { isError: true }),
+  }),
+}));
+
 import { publishPostTool } from "../../../mcp-server/src/tools/publish-post.js";
-import {
-  createTmpDir,
-  setupContentDir,
-  writePost,
-  cleanupTmpDir,
-  parseResult,
-} from "./helpers.js";
+import { apiRequest } from "../../../mcp-server/src/utils/api-client.js";
+
+const mockApiRequest = vi.mocked(apiRequest);
 
 describe("publish-post", () => {
-  let tmpDir: string;
-  const originalEnv = process.env.BLOG_CONTENT_DIR;
-  const originalCwd = process.cwd();
-
   beforeEach(() => {
-    tmpDir = createTmpDir();
-    setupContentDir(tmpDir, "ko");
-    process.env.BLOG_CONTENT_DIR = tmpDir;
-    process.chdir(tmpDir);
+    vi.clearAllMocks();
   });
 
-  afterEach(() => {
-    process.env.BLOG_CONTENT_DIR = originalEnv;
-    process.chdir(originalCwd);
-    cleanupTmpDir(tmpDir);
-  });
-
-  it("sets draft to false", async () => {
-    writePost(tmpDir, "ko", "draft-post", { draft: true });
+  it("sets draft to false via PATCH API", async () => {
+    const published = samplePost({
+      draft: false,
+      published_date: "2025-03-21T00:00:00Z",
+    });
+    mockApiRequest.mockResolvedValue({
+      data: published,
+      error: null,
+      status: 200,
+    });
 
     const result = await publishPostTool.handler({
       slug: "draft-post",
       locale: "ko",
     });
-
     const data = parseResult(result);
-    expect(data.wasDraft).toBe(true);
 
-    const raw = readFileSync(join(tmpDir, "ko", "draft-post.mdx"), "utf-8");
-    const { data: fm } = matter(raw);
-    expect(fm.draft).toBe(false);
+    expect(data.draft).toBe(false);
+    expect(mockApiRequest).toHaveBeenCalledWith("/posts/draft-post", {
+      method: "PATCH",
+      body: { locale: "ko", draft: false },
+    });
   });
 
-  it("updates publishedDate when publishing a draft", async () => {
-    writePost(tmpDir, "ko", "date-update", {
-      draft: true,
-      publishedDate: "2024-01-01",
-    });
-
-    const result = await publishPostTool.handler({
-      slug: "date-update",
-      locale: "ko",
-    });
-
-    const data = parseResult(result);
-    expect(data.wasDraft).toBe(true);
-    expect(data.publishedDate).toMatch(
-      /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2})?$/,
-    );
-    // Should be today, not the old date
-    expect(data.publishedDate).not.toBe("2024-01-01");
-  });
-
-  it("does not update publishedDate for already published posts", async () => {
-    writePost(tmpDir, "ko", "already-pub", {
+  it("returns published post data", async () => {
+    const published = samplePost({
       draft: false,
-      publishedDate: "2024-06-15",
+      published_date: "2025-03-21T00:00:00Z",
+      title: "Now Published",
+    });
+    mockApiRequest.mockResolvedValue({
+      data: published,
+      error: null,
+      status: 200,
     });
 
     const result = await publishPostTool.handler({
-      slug: "already-pub",
+      slug: "pub-post",
       locale: "ko",
     });
-
     const data = parseResult(result);
-    expect(data.wasDraft).toBe(false);
-  });
 
-  it("preserves body content", async () => {
-    writePost(tmpDir, "ko", "body-keep", {
-      draft: true,
-      body: "My important content.",
-    });
-
-    await publishPostTool.handler({ slug: "body-keep", locale: "ko" });
-
-    const raw = readFileSync(join(tmpDir, "ko", "body-keep.mdx"), "utf-8");
-    const { content } = matter(raw);
-    expect(content).toContain("My important content.");
+    expect(data.title).toBe("Now Published");
+    expect(data.published_date).toBeDefined();
   });
 
   it("returns error for non-existent post", async () => {
+    mockApiRequest.mockResolvedValue({
+      data: null,
+      error: "Post not found",
+      status: 404,
+    });
+
     const result = await publishPostTool.handler({
       slug: "ghost",
       locale: "ko",
     });
-
     expect(result.isError).toBe(true);
   });
 
-  it("returns published path", async () => {
-    writePost(tmpDir, "ko", "path-check", { draft: true });
-
-    const result = await publishPostTool.handler({
-      slug: "path-check",
-      locale: "ko",
+  it("handles different locales", async () => {
+    const published = samplePost({ locale: "en", draft: false });
+    mockApiRequest.mockResolvedValue({
+      data: published,
+      error: null,
+      status: 200,
     });
 
-    const data = parseResult(result);
-    expect(data.published).toBe("ko/path-check.mdx");
+    await publishPostTool.handler({ slug: "en-post", locale: "en" });
+
+    expect(mockApiRequest).toHaveBeenCalledWith("/posts/en-post", {
+      method: "PATCH",
+      body: { locale: "en", draft: false },
+    });
   });
 });

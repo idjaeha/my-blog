@@ -1,36 +1,31 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import matter from "gray-matter";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { parseResult, samplePost } from "./helpers.js";
+
+vi.mock("../../../mcp-server/src/utils/api-client.js", () => ({
+  apiRequest: vi.fn(),
+  toolResponse: (data: unknown, isError = false) => ({
+    content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+    ...(isError && { isError: true }),
+  }),
+}));
+
 import { editPostMetadataTool } from "../../../mcp-server/src/tools/edit-post-metadata.js";
-import {
-  createTmpDir,
-  setupContentDir,
-  writePost,
-  cleanupTmpDir,
-  parseResult,
-} from "./helpers.js";
+import { apiRequest } from "../../../mcp-server/src/utils/api-client.js";
+
+const mockApiRequest = vi.mocked(apiRequest);
 
 describe("edit-post-metadata", () => {
-  let tmpDir: string;
-  const originalEnv = process.env.BLOG_CONTENT_DIR;
-  const originalCwd = process.cwd();
-
   beforeEach(() => {
-    tmpDir = createTmpDir();
-    setupContentDir(tmpDir, "ko");
-    process.env.BLOG_CONTENT_DIR = tmpDir;
-    process.chdir(tmpDir);
+    vi.clearAllMocks();
   });
 
-  afterEach(() => {
-    process.env.BLOG_CONTENT_DIR = originalEnv;
-    process.chdir(originalCwd);
-    cleanupTmpDir(tmpDir);
-  });
-
-  it("updates title", async () => {
-    writePost(tmpDir, "ko", "edit-me", { title: "Original" });
+  it("updates title via PATCH API", async () => {
+    const updated = samplePost({ title: "Updated Title" });
+    mockApiRequest.mockResolvedValue({
+      data: updated,
+      error: null,
+      status: 200,
+    });
 
     const result = await editPostMetadataTool.handler({
       slug: "edit-me",
@@ -39,26 +34,45 @@ describe("edit-post-metadata", () => {
     });
 
     const data = parseResult(result);
-    expect(data.frontmatter.title).toBe("Updated Title");
+    expect(data.title).toBe("Updated Title");
+    expect(mockApiRequest).toHaveBeenCalledWith(
+      "/posts/edit-me",
+      expect.objectContaining({
+        method: "PATCH",
+        body: expect.objectContaining({ title: "Updated Title", locale: "ko" }),
+      }),
+    );
   });
 
-  it("sets updatedDate automatically", async () => {
-    writePost(tmpDir, "ko", "date-check", { title: "Date Check" });
+  it("sets updated_date automatically", async () => {
+    const updated = samplePost({ updated_date: "2025-03-21T00:00:00Z" });
+    mockApiRequest.mockResolvedValue({
+      data: updated,
+      error: null,
+      status: 200,
+    });
 
-    const result = await editPostMetadataTool.handler({
+    await editPostMetadataTool.handler({
       slug: "date-check",
       locale: "ko",
       updates: { title: "Changed" },
     });
 
-    const data = parseResult(result);
-    expect(data.frontmatter.updatedDate).toMatch(
-      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+09:00$/,
-    );
+    const callBody = mockApiRequest.mock.calls[0][1]?.body as Record<
+      string,
+      unknown
+    >;
+    expect(callBody.updated_date).toBeDefined();
+    expect(typeof callBody.updated_date).toBe("string");
   });
 
   it("updates tags", async () => {
-    writePost(tmpDir, "ko", "tag-update", { tags: ["old"] });
+    const updated = samplePost({ tags: ["new", "tags"] });
+    mockApiRequest.mockResolvedValue({
+      data: updated,
+      error: null,
+      status: 200,
+    });
 
     const result = await editPostMetadataTool.handler({
       slug: "tag-update",
@@ -67,11 +81,16 @@ describe("edit-post-metadata", () => {
     });
 
     const data = parseResult(result);
-    expect(data.frontmatter.tags).toEqual(["new", "tags"]);
+    expect(data.tags).toEqual(["new", "tags"]);
   });
 
   it("updates category", async () => {
-    writePost(tmpDir, "ko", "cat-update", { category: "article" });
+    const updated = samplePost({ category: "tutorial" });
+    mockApiRequest.mockResolvedValue({
+      data: updated,
+      error: null,
+      status: 200,
+    });
 
     const result = await editPostMetadataTool.handler({
       slug: "cat-update",
@@ -80,49 +99,16 @@ describe("edit-post-metadata", () => {
     });
 
     const data = parseResult(result);
-    expect(data.frontmatter.category).toBe("tutorial");
-  });
-
-  it("preserves body content after metadata edit", async () => {
-    writePost(tmpDir, "ko", "body-preserve", {
-      title: "Preserve Body",
-      body: "Important content here.",
-    });
-
-    await editPostMetadataTool.handler({
-      slug: "body-preserve",
-      locale: "ko",
-      updates: { title: "New Title" },
-    });
-
-    const raw = readFileSync(join(tmpDir, "ko", "body-preserve.mdx"), "utf-8");
-    const { content } = matter(raw);
-    expect(content).toContain("Important content here.");
-  });
-
-  it("preserves unchanged fields", async () => {
-    writePost(tmpDir, "ko", "preserve-fields", {
-      title: "Keep Me",
-      description: "Also keep me",
-      category: "article",
-    });
-
-    await editPostMetadataTool.handler({
-      slug: "preserve-fields",
-      locale: "ko",
-      updates: { title: "Changed" },
-    });
-
-    const raw = readFileSync(
-      join(tmpDir, "ko", "preserve-fields.mdx"),
-      "utf-8",
-    );
-    const { data } = matter(raw);
-    expect(data.description).toBe("Also keep me");
-    expect(data.category).toBe("article");
+    expect(data.category).toBe("tutorial");
   });
 
   it("returns error for non-existent post", async () => {
+    mockApiRequest.mockResolvedValue({
+      data: null,
+      error: "Post not found",
+      status: 404,
+    });
+
     const result = await editPostMetadataTool.handler({
       slug: "ghost",
       locale: "ko",
@@ -133,7 +119,12 @@ describe("edit-post-metadata", () => {
   });
 
   it("updates draft status", async () => {
-    writePost(tmpDir, "ko", "draft-toggle", { draft: true });
+    const updated = samplePost({ draft: false });
+    mockApiRequest.mockResolvedValue({
+      data: updated,
+      error: null,
+      status: 200,
+    });
 
     const result = await editPostMetadataTool.handler({
       slug: "draft-toggle",
@@ -142,6 +133,46 @@ describe("edit-post-metadata", () => {
     });
 
     const data = parseResult(result);
-    expect(data.frontmatter.draft).toBe(false);
+    expect(data.draft).toBe(false);
+  });
+
+  it("maps coverImage to cover_image for API", async () => {
+    mockApiRequest.mockResolvedValue({
+      data: samplePost(),
+      error: null,
+      status: 200,
+    });
+
+    await editPostMetadataTool.handler({
+      slug: "img-post",
+      locale: "ko",
+      updates: { coverImage: "/images/cover.png" },
+    });
+
+    const callBody = mockApiRequest.mock.calls[0][1]?.body as Record<
+      string,
+      unknown
+    >;
+    expect(callBody.cover_image).toBe("/images/cover.png");
+  });
+
+  it("maps seriesOrder to series_order for API", async () => {
+    mockApiRequest.mockResolvedValue({
+      data: samplePost(),
+      error: null,
+      status: 200,
+    });
+
+    await editPostMetadataTool.handler({
+      slug: "series-post",
+      locale: "ko",
+      updates: { seriesOrder: 3 },
+    });
+
+    const callBody = mockApiRequest.mock.calls[0][1]?.body as Record<
+      string,
+      unknown
+    >;
+    expect(callBody.series_order).toBe(3);
   });
 });

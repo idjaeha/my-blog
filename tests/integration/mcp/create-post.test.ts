@@ -1,36 +1,36 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { readFileSync, existsSync } from "node:fs";
-import { join } from "node:path";
-import matter from "gray-matter";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { parseResult, samplePost } from "./helpers.js";
+
+vi.mock("../../../mcp-server/src/utils/api-client.js", () => ({
+  apiRequest: vi.fn(),
+  toolResponse: (data: unknown, isError = false) => ({
+    content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+    ...(isError && { isError: true }),
+  }),
+}));
+
 import { createPostTool } from "../../../mcp-server/src/tools/create-post.js";
-import {
-  createTmpDir,
-  setupContentDir,
-  writePost,
-  cleanupTmpDir,
-  parseResult,
-} from "./helpers.js";
+import { apiRequest } from "../../../mcp-server/src/utils/api-client.js";
+
+const mockApiRequest = vi.mocked(apiRequest);
 
 describe("create-post", () => {
-  let tmpDir: string;
-  const originalEnv = process.env.BLOG_CONTENT_DIR;
-  const originalCwd = process.cwd();
-
   beforeEach(() => {
-    tmpDir = createTmpDir();
-    setupContentDir(tmpDir, "ko");
-    setupContentDir(tmpDir, "en");
-    process.env.BLOG_CONTENT_DIR = tmpDir;
-    process.chdir(tmpDir);
+    vi.clearAllMocks();
   });
 
-  afterEach(() => {
-    process.env.BLOG_CONTENT_DIR = originalEnv;
-    process.chdir(originalCwd);
-    cleanupTmpDir(tmpDir);
-  });
+  it("creates a new post via API", async () => {
+    const created = samplePost({
+      slug: "my-first-post",
+      title: "My First Post",
+      category: "article",
+    });
+    mockApiRequest.mockResolvedValue({
+      data: created,
+      error: null,
+      status: 201,
+    });
 
-  it("creates a new MDX post with frontmatter", async () => {
     const result = await createPostTool.handler({
       slug: "my-first-post",
       title: "My First Post",
@@ -41,33 +41,23 @@ describe("create-post", () => {
     });
 
     const data = parseResult(result);
-    expect(data.created).toBe("ko/my-first-post.mdx");
-    expect(data.frontmatter.title).toBe("My First Post");
-    expect(data.frontmatter.category).toBe("article");
-    expect(data.frontmatter.draft).toBe(true);
+    expect(data.title).toBe("My First Post");
+    expect(data.category).toBe("article");
+    expect(mockApiRequest).toHaveBeenCalledWith(
+      "/posts",
+      expect.objectContaining({ method: "POST" }),
+    );
   });
 
-  it("writes valid MDX file to disk", async () => {
-    await createPostTool.handler({
-      slug: "disk-check",
-      title: "Disk Check",
-      description: "Check file on disk",
-      category: "til",
-      locale: "ko",
-      draft: false,
+  it("sends tags in request body", async () => {
+    const created = samplePost({ tags: ["react", "typescript"] });
+    mockApiRequest.mockResolvedValue({
+      data: created,
+      error: null,
+      status: 201,
     });
 
-    const filePath = join(tmpDir, "ko", "disk-check.mdx");
-    expect(existsSync(filePath)).toBe(true);
-
-    const raw = readFileSync(filePath, "utf-8");
-    const { data } = matter(raw);
-    expect(data.title).toBe("Disk Check");
-    expect(data.category).toBe("til");
-  });
-
-  it("includes tags in frontmatter", async () => {
-    const result = await createPostTool.handler({
+    await createPostTool.handler({
       slug: "tagged-post",
       title: "Tagged Post",
       description: "Post with tags",
@@ -77,12 +67,22 @@ describe("create-post", () => {
       draft: true,
     });
 
-    const data = parseResult(result);
-    expect(data.frontmatter.tags).toEqual(["react", "typescript"]);
+    expect(mockApiRequest).toHaveBeenCalledWith(
+      "/posts",
+      expect.objectContaining({
+        body: expect.objectContaining({ tags: ["react", "typescript"] }),
+      }),
+    );
   });
 
   it("defaults tags to empty array when not provided", async () => {
-    const result = await createPostTool.handler({
+    mockApiRequest.mockResolvedValue({
+      data: samplePost(),
+      error: null,
+      status: 201,
+    });
+
+    await createPostTool.handler({
       slug: "no-tags",
       title: "No Tags",
       description: "No tags here",
@@ -91,28 +91,20 @@ describe("create-post", () => {
       draft: true,
     });
 
-    const data = parseResult(result);
-    expect(data.frontmatter.tags).toEqual([]);
-  });
-
-  it("adds publishedDate automatically", async () => {
-    const result = await createPostTool.handler({
-      slug: "dated-post",
-      title: "Dated Post",
-      description: "Has a date",
-      category: "article",
-      locale: "ko",
-      draft: true,
-    });
-
-    const data = parseResult(result);
-    expect(data.frontmatter.publishedDate).toMatch(
-      /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2})?$/,
+    expect(mockApiRequest).toHaveBeenCalledWith(
+      "/posts",
+      expect.objectContaining({
+        body: expect.objectContaining({ tags: [] }),
+      }),
     );
   });
 
-  it("prevents creating duplicate posts", async () => {
-    writePost(tmpDir, "ko", "existing-post", { title: "Existing" });
+  it("returns error for duplicate posts", async () => {
+    mockApiRequest.mockResolvedValue({
+      data: null,
+      error: 'Post with slug "existing-post" already exists for locale "ko"',
+      status: 409,
+    });
 
     const result = await createPostTool.handler({
       slug: "existing-post",
@@ -129,6 +121,13 @@ describe("create-post", () => {
   });
 
   it("creates posts in different locales", async () => {
+    const created = samplePost({ locale: "en" });
+    mockApiRequest.mockResolvedValue({
+      data: created,
+      error: null,
+      status: 201,
+    });
+
     await createPostTool.handler({
       slug: "en-post",
       title: "English Post",
@@ -138,27 +137,49 @@ describe("create-post", () => {
       draft: true,
     });
 
-    expect(existsSync(join(tmpDir, "en", "en-post.mdx"))).toBe(true);
+    expect(mockApiRequest).toHaveBeenCalledWith(
+      "/posts",
+      expect.objectContaining({
+        body: expect.objectContaining({ locale: "en" }),
+      }),
+    );
   });
 
-  it("includes body content in MDX", async () => {
+  it("sends body content", async () => {
+    mockApiRequest.mockResolvedValue({
+      data: samplePost(),
+      error: null,
+      status: 201,
+    });
+
     await createPostTool.handler({
       slug: "with-body",
       title: "With Body",
-      description: "Has body content",
+      description: "Has body",
       category: "article",
       locale: "ko",
       draft: true,
       body: "Hello, this is the body content.",
     });
 
-    const raw = readFileSync(join(tmpDir, "ko", "with-body.mdx"), "utf-8");
-    const { content } = matter(raw);
-    expect(content).toContain("Hello, this is the body content.");
+    expect(mockApiRequest).toHaveBeenCalledWith(
+      "/posts",
+      expect.objectContaining({
+        body: expect.objectContaining({
+          body: "Hello, this is the body content.",
+        }),
+      }),
+    );
   });
 
-  it("includes series metadata when provided", async () => {
-    const result = await createPostTool.handler({
+  it("sends series metadata when provided", async () => {
+    mockApiRequest.mockResolvedValue({
+      data: samplePost(),
+      error: null,
+      status: 201,
+    });
+
+    await createPostTool.handler({
       slug: "series-post",
       title: "Series Post",
       description: "Part of a series",
@@ -169,13 +190,25 @@ describe("create-post", () => {
       seriesOrder: 1,
     });
 
-    const data = parseResult(result);
-    expect(data.frontmatter.series).toBe("React Deep Dive");
-    expect(data.frontmatter.seriesOrder).toBe(1);
+    expect(mockApiRequest).toHaveBeenCalledWith(
+      "/posts",
+      expect.objectContaining({
+        body: expect.objectContaining({
+          series: "React Deep Dive",
+          series_order: 1,
+        }),
+      }),
+    );
   });
 
   it("omits series fields when not provided", async () => {
-    const result = await createPostTool.handler({
+    mockApiRequest.mockResolvedValue({
+      data: samplePost(),
+      error: null,
+      status: 201,
+    });
+
+    await createPostTool.handler({
       slug: "no-series",
       title: "No Series",
       description: "Not in a series",
@@ -184,8 +217,11 @@ describe("create-post", () => {
       draft: true,
     });
 
-    const data = parseResult(result);
-    expect(data.frontmatter.series).toBeUndefined();
-    expect(data.frontmatter.seriesOrder).toBeUndefined();
+    const callBody = mockApiRequest.mock.calls[0][1]?.body as Record<
+      string,
+      unknown
+    >;
+    expect(callBody.series).toBeUndefined();
+    expect(callBody.series_order).toBeUndefined();
   });
 });
