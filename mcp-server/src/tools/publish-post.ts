@@ -1,8 +1,5 @@
 import { z } from "zod";
-import { readFile, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
-import matter from "gray-matter";
-import { nowKST, fixFrontmatterDates } from "../utils/date.js";
+import { apiRequest, toolResponse } from "../utils/api-client.js";
 
 export const publishPostTool = {
   name: "publish-post",
@@ -10,51 +7,18 @@ export const publishPostTool = {
     "Publish a draft blog post by setting draft to false and updating the published date.",
   inputSchema: z.object({
     slug: z.string().describe("The post slug"),
-    locale: z.enum(["ko", "en"]).default("ko").describe("Locale directory"),
+    locale: z.enum(["ko", "en"]).default("ko").describe("Locale of the post"),
   }),
   handler: async ({ slug, locale }: { slug: string; locale: string }) => {
-    const contentDir = resolve(
-      process.cwd(),
-      process.env.BLOG_CONTENT_DIR || "src/content/blog",
-    );
-    const filePath = join(contentDir, locale, `${slug}.mdx`);
+    const { data, error } = await apiRequest(`/posts/${slug}`, {
+      method: "PATCH",
+      body: {
+        locale,
+        draft: false,
+      },
+    });
 
-    try {
-      const raw = await readFile(filePath, "utf-8");
-      const { data, content } = matter(raw);
-      fixFrontmatterDates(data);
-
-      const wasDraft = Boolean(data.draft);
-
-      data.draft = false;
-      if (wasDraft) {
-        data.publishedDate = nowKST();
-      }
-
-      const fileContent = matter.stringify(content, data);
-      await writeFile(filePath, fileContent, "utf-8");
-
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify({
-              published: `${locale}/${slug}.mdx`,
-              wasDraft,
-              publishedDate: data.publishedDate,
-            }),
-          },
-        ],
-      };
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Unknown error publishing post";
-      return {
-        content: [
-          { type: "text" as const, text: JSON.stringify({ error: message }) },
-        ],
-        isError: true,
-      };
-    }
+    if (error) return toolResponse({ error }, true);
+    return toolResponse(data);
   },
 };

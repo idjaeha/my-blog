@@ -1,54 +1,20 @@
 import { z } from "zod";
-import { rename, mkdir, access } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { apiRequest, toolResponse } from "../utils/api-client.js";
 
 export const deletePostTool = {
   name: "delete-post",
-  description:
-    "Soft-delete a blog post by moving it to the _archive directory.",
+  description: "Soft-delete a blog post by archiving it.",
   inputSchema: z.object({
     slug: z.string().describe("The post slug"),
-    locale: z.enum(["ko", "en"]).default("ko").describe("Locale directory"),
+    locale: z.enum(["ko", "en"]).default("ko").describe("Locale of the post"),
   }),
   handler: async ({ slug, locale }: { slug: string; locale: string }) => {
-    const contentDir = resolve(
-      process.cwd(),
-      process.env.BLOG_CONTENT_DIR || "src/content/blog",
-    );
-    const srcPath = join(contentDir, locale, `${slug}.mdx`);
-    const archiveDir = join(contentDir, "_archive");
-    const destPath = join(archiveDir, `${locale}-${slug}.mdx`);
+    const { data, error } = await apiRequest(`/posts/${slug}`, {
+      method: "DELETE",
+      params: { locale },
+    });
 
-    try {
-      // Verify source file exists
-      await access(srcPath);
-
-      // Create _archive directory if it does not exist
-      await mkdir(archiveDir, { recursive: true });
-
-      // Move file
-      await rename(srcPath, destPath);
-
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify({
-              archived: `${locale}/${slug}.mdx`,
-              destination: `_archive/${locale}-${slug}.mdx`,
-            }),
-          },
-        ],
-      };
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Unknown error deleting post";
-      return {
-        content: [
-          { type: "text" as const, text: JSON.stringify({ error: message }) },
-        ],
-        isError: true,
-      };
-    }
+    if (error) return toolResponse({ error }, true);
+    return toolResponse(data);
   },
 };
