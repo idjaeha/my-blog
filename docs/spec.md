@@ -168,11 +168,20 @@ export type { ContentService, Post } from "./types";
 ### 3.3 MCP Server Architecture
 
 Claude Code에서 블로그 글을 직접 작성/편집/관리할 수 있도록 MCP 서버를 구축한다.
+MCP 서버는 REST API 엔드포인트를 통해 Supabase와 통신하며, API 키 인증으로 쓰기 작업을 보호한다.
 
 - **서버명**: `blog-mcp`
 - **Transport**: stdio
 - **등록**: `.mcp.json`
-- **구현**: Node.js + `@modelcontextprotocol/sdk` + `gray-matter`
+- **구현**: Node.js + `@modelcontextprotocol/sdk` + HTTP API Client
+- **데이터 저장소**: Supabase (PostgreSQL)
+- **인증**: SHA-256 해시 기반 API 키 (`api_keys` 테이블)
+
+#### 데이터 흐름
+
+```
+MCP Server → HTTP API Client → REST API (/api/*) → Supabase
+```
 
 #### .mcp.json
 
@@ -183,234 +192,70 @@ Claude Code에서 블로그 글을 직접 작성/편집/관리할 수 있도록 
       "command": "node",
       "args": ["mcp-server/dist/index.js"],
       "env": {
-        "BLOG_CONTENT_DIR": "src/content/blog"
-      }
-    }
-  }
-}
-```
-
-#### MCP Tools 정의
-
-##### `create_post`
-
-새 MDX 파일과 프론트매터를 생성한다.
-
-```json
-{
-  "name": "create_post",
-  "description": "Create a new blog post MDX file with frontmatter",
-  "inputSchema": {
-    "type": "object",
-    "properties": {
-      "slug": {
-        "type": "string",
-        "description": "URL-friendly post identifier (e.g., 'my-first-post')"
-      },
-      "title": {
-        "type": "string",
-        "maxLength": 100,
-        "description": "Post title"
-      },
-      "description": {
-        "type": "string",
-        "maxLength": 300,
-        "description": "Post description for SEO and previews"
-      },
-      "category": {
-        "type": "string",
-        "enum": ["til", "retrospective", "article", "tutorial"],
-        "description": "Post category"
-      },
-      "tags": {
-        "type": "array",
-        "items": { "type": "string" },
-        "description": "Post tags"
-      },
-      "locale": {
-        "type": "string",
-        "enum": ["ko", "en"],
-        "default": "ko",
-        "description": "Post language"
-      },
-      "draft": {
-        "type": "boolean",
-        "default": true,
-        "description": "Whether the post is a draft"
-      },
-      "body": {
-        "type": "string",
-        "description": "MDX content body"
-      },
-      "series": {
-        "type": "string",
-        "description": "Series name if part of a series"
-      },
-      "seriesOrder": {
-        "type": "number",
-        "description": "Order within the series"
-      },
-      "coverImage": {
-        "type": "string",
-        "description": "Relative path to cover image (e.g. '../../../assets/images/blog/my-post-cover.png')"
+        "BLOG_API_URL": "https://my-blog.site/api",
+        "BLOG_API_KEY": "<generated-api-key>"
       }
     },
-    "required": ["slug", "title", "description", "category", "locale"]
-  }
-}
-```
-
-##### `edit_post_metadata`
-
-기존 포스트의 프론트매터를 수정한다.
-
-```json
-{
-  "name": "edit_post_metadata",
-  "description": "Edit frontmatter fields of an existing blog post",
-  "inputSchema": {
-    "type": "object",
-    "properties": {
-      "slug": { "type": "string", "description": "Post slug" },
-      "locale": { "type": "string", "enum": ["ko", "en"], "default": "ko" },
-      "updates": {
-        "type": "object",
-        "description": "Frontmatter fields to update",
-        "properties": {
-          "title": { "type": "string", "maxLength": 100 },
-          "description": { "type": "string", "maxLength": 300 },
-          "category": {
-            "type": "string",
-            "enum": ["til", "retrospective", "article", "tutorial"]
-          },
-          "tags": { "type": "array", "items": { "type": "string" } },
-          "draft": { "type": "boolean" },
-          "coverImage": { "type": "string" },
-          "series": { "type": "string" },
-          "seriesOrder": { "type": "number" }
-        }
-      }
-    },
-    "required": ["slug", "updates"]
-  }
-}
-```
-
-##### `list_posts`
-
-필터링된 포스트 목록을 반환한다.
-
-```json
-{
-  "name": "list_posts",
-  "description": "List blog posts with optional filters",
-  "inputSchema": {
-    "type": "object",
-    "properties": {
-      "locale": { "type": "string", "enum": ["ko", "en"], "default": "ko" },
-      "category": {
-        "type": "string",
-        "enum": ["til", "retrospective", "article", "tutorial"]
-      },
-      "tag": { "type": "string" },
-      "draft": { "type": "boolean", "description": "Filter by draft status" },
-      "limit": { "type": "number", "default": 20 },
-      "offset": { "type": "number", "default": 0 }
+    "supabase": {
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp?project_ref=<project-ref>"
     }
   }
 }
 ```
 
-##### `get_post`
+#### REST API 엔드포인트
 
-포스트 전체 내용(프론트매터 + 본문)을 조회한다.
+| 메서드 | 경로                | 인증    | 설명            |
+| ------ | ------------------- | ------- | --------------- |
+| GET    | `/api/posts`        | 불필요  | 게시물 목록     |
+| POST   | `/api/posts`        | API Key | 게시물 생성     |
+| GET    | `/api/posts/[slug]` | 불필요  | 게시물 조회     |
+| PATCH  | `/api/posts/[slug]` | API Key | 게시물 수정     |
+| DELETE | `/api/posts/[slug]` | API Key | 게시물 아카이브 |
+| GET    | `/api/tags`         | 불필요  | 태그+카운트     |
+| GET    | `/api/categories`   | 불필요  | 카테고리+카운트 |
 
-```json
-{
-  "name": "get_post",
-  "description": "Get full content of a blog post including frontmatter and body",
-  "inputSchema": {
-    "type": "object",
-    "properties": {
-      "slug": { "type": "string", "description": "Post slug" },
-      "locale": { "type": "string", "enum": ["ko", "en"], "default": "ko" }
-    },
-    "required": ["slug"]
-  }
-}
-```
+#### Supabase 테이블
 
-##### `publish_post`
+**posts**: 블로그 게시물 저장
 
-draft 상태를 published로 전환한다.
+| 컬럼           | 타입        | 설명                         |
+| -------------- | ----------- | ---------------------------- |
+| id             | UUID (PK)   | 자동 생성                    |
+| slug           | TEXT        | URL 식별자                   |
+| locale         | TEXT        | 언어 (ko, en)                |
+| title          | TEXT        | 제목                         |
+| description    | TEXT        | 설명                         |
+| category       | TEXT        | 카테고리                     |
+| tags           | TEXT[]      | 태그 배열                    |
+| body           | TEXT        | MDX 본문                     |
+| draft          | BOOLEAN     | 초안 여부                    |
+| published_date | TIMESTAMPTZ | 발행일                       |
+| archived_at    | TIMESTAMPTZ | 소프트 삭제 시각 (NULL=활성) |
 
-```json
-{
-  "name": "publish_post",
-  "description": "Change post status from draft to published, setting publishedDate to now",
-  "inputSchema": {
-    "type": "object",
-    "properties": {
-      "slug": { "type": "string", "description": "Post slug" },
-      "locale": { "type": "string", "enum": ["ko", "en"], "default": "ko" }
-    },
-    "required": ["slug"]
-  }
-}
-```
+**api_keys**: API 인증 키
 
-##### `delete_post`
+| 컬럼         | 타입        | 설명             |
+| ------------ | ----------- | ---------------- |
+| id           | UUID (PK)   | 자동 생성        |
+| key_hash     | TEXT UNIQUE | SHA-256 해시     |
+| name         | TEXT        | 키 이름          |
+| is_active    | BOOLEAN     | 활성 여부        |
+| last_used_at | TIMESTAMPTZ | 마지막 사용 시각 |
 
-포스트를 `_archive/` 디렉토리로 소프트 삭제한다. 복구 가능.
+#### MCP Tools
 
-```json
-{
-  "name": "delete_post",
-  "description": "Soft-delete a post by moving it to _archive/ directory",
-  "inputSchema": {
-    "type": "object",
-    "properties": {
-      "slug": { "type": "string", "description": "Post slug" },
-      "locale": { "type": "string", "enum": ["ko", "en"], "default": "ko" }
-    },
-    "required": ["slug"]
-  }
-}
-```
+MCP 서버는 REST API를 래핑하여 8개의 도구를 제공한다:
 
-##### `list_tags`
-
-사용 중인 태그 목록과 포스트 수를 반환한다.
-
-```json
-{
-  "name": "list_tags",
-  "description": "List all tags with post counts",
-  "inputSchema": {
-    "type": "object",
-    "properties": {
-      "locale": { "type": "string", "enum": ["ko", "en"], "default": "ko" }
-    }
-  }
-}
-```
-
-##### `list_categories`
-
-카테고리별 포스트 수를 반환한다.
-
-```json
-{
-  "name": "list_categories",
-  "description": "List all categories with post counts",
-  "inputSchema": {
-    "type": "object",
-    "properties": {
-      "locale": { "type": "string", "enum": ["ko", "en"], "default": "ko" }
-    }
-  }
-}
-```
+- **create-post**: POST `/api/posts` → 새 게시물 생성
+- **list-posts**: GET `/api/posts` → 필터링/페이지네이션된 목록
+- **get-post**: GET `/api/posts/[slug]` → 단일 게시물 조회
+- **edit-post-metadata**: PATCH `/api/posts/[slug]` → 메타데이터 수정
+- **publish-post**: PATCH `/api/posts/[slug]` (draft=false) → 발행
+- **delete-post**: DELETE `/api/posts/[slug]` → 소프트 삭제 (archived_at 설정)
+- **list-tags**: GET `/api/tags` → 태그 집계
+- **list-categories**: GET `/api/categories` → 카테고리 집계
 
 ---
 
