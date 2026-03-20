@@ -38,7 +38,7 @@ const { Content } = await post.render();
     updatedDate: post.updatedDate?.toISOString(),
     category: post.category,
     tags: post.tags,
-    image: post.coverImage?.src ?? `/og/blog/${post.slug}.png`,
+    image: post.coverImage ?? `/og/blog/${post.slug}.png`,
     coverImage: post.coverImage,
     draft: post.draft,
   }}

@@ -5,6 +5,7 @@ import sitemap from "@astrojs/sitemap";
 import vercel from "@astrojs/vercel";
 import tailwindcss from "@tailwindcss/vite";
 import { remarkMermaid } from "./src/lib/remark-mermaid";
+import { remarkCallout } from "./src/lib/remark-callout";
 
 export default defineConfig({
   site: "https://my-blog.site",
@@ -15,7 +16,7 @@ export default defineConfig({
     plugins: [tailwindcss()],
   },
   markdown: {
-    remarkPlugins: [remarkMermaid],
+    remarkPlugins: [remarkMermaid, remarkCallout],
     shikiConfig: {
       themes: {
         light: "github-light",

@@ -15,16 +15,20 @@ Supabase에 저장된 블로그 게시물을 CRUD하는 도구를 제공한다.
 
 ## 글쓰기 규칙
 
-### 구조
+### 구조 (두괄식)
 - H1(#)은 사용하지 않는다 (프론트매터 title이 H1 역할)
 - H2(##)로 주요 섹션 구분 (글당 5-8개)
 - H3(###)은 H2 하위 소주제 (H2당 1-3개)
 - 섹션당 150-400 단어 수준으로 유지
+- 글의 첫 섹션에 핵심 결론/요약을 먼저 제시한다 (두괄식)
+  - 예: "## 결론부터" 또는 "## 핵심 요약" 섹션을 맨 앞에 배치
+  - 독자가 전체를 읽지 않아도 핵심을 파악할 수 있어야 한다
+  - 이후 섹션에서 배경, 과정, 상세를 풀어간다
 
 ### 도입부
-- 개인 경험이나 실제 문제 상황으로 시작한다
-- 추상적 정의가 아닌 구체적 맥락을 먼저 제시한다
-- 예: "프로젝트에서 Git hooks를 설정하다가 이상한 문제를 만났다..."
+- 핵심 결론/해결책을 먼저 제시한 뒤, 배경 맥락을 이어간다
+- 개인 경험이나 실제 문제 상황을 짧게 언급한다
+- 예: "MongoDB Atlas Private Endpoint는 ENI가 Private Subnet에 있어야 한다. 이 글은 그걸 모르고 삽질한 기록이다."
 
 ### 본문
 - 문단은 2-4문장 이내로 짧게 유지한다
@@ -33,18 +37,29 @@ Supabase에 저장된 블로그 게시물을 CRUD하는 도구를 제공한다.
 - 코드 블록에는 명령어 + 예상 출력을 함께 보여준다
 - em dash(—)로 문장 전환을 자연스럽게 연결한다
 
-### MDX 컴포넌트
-- Callout: 중요 경고/팁에만 사용 (글당 1-2개 이내, 남용 금지)
-  - type: "warning" | "info" | "tip"
-  - 예: <Callout type="warning" title="흔한 실수">내용</Callout>
-- Mermaid: 아키텍처/흐름 시각화에 사용 (장식이 아닌 이해 보조 목적)
-  - flowchart TB/LR, sequenceDiagram 등
-- LinkCard: 시리즈 연결이나 관련 글 참조에 사용 (글 끝부분)
+### 특수 블록 (Markdown 문법 — JSX 금지)
+이 MCP로 작성하는 글은 Markdown으로 렌더링된다. JSX 컴포넌트(<Callout>, <LinkCard>)는 사용 불가.
+대신 아래 Markdown 문법을 사용한다:
+
+- Callout (GFM Alerts):
+  > [!WARNING] 제목
+  > 내용
+  - 지원 타입: NOTE(참고), TIP(팁), WARNING(주의), IMPORTANT(중요), CAUTION(주의)
+  - 글당 1-2개 이내, 남용 금지
+
+- Mermaid: 표준 코드블록 사용 (자동 렌더링됨)
+  \`\`\`mermaid
+  flowchart TB
+    A --> B
+  \`\`\`
+
+- 링크: 일반 Markdown 링크 사용 (LinkCard 불가)
+  - [글 제목](/blog/slug)
 
 ### 마무리
-- "정리" 또는 "결론" 섹션으로 핵심을 요약한다
+- 글 끝에 별도 "결론" 섹션은 선택사항 (두괄식이므로 서두에 이미 핵심이 있음)
 - 비교 글은 "어떤 것을 선택할까" 형태의 판단 기준을 제시한다
-- 시리즈 글은 LinkCard로 다음 편을 연결한다
+- 시리즈 글은 다음 편 링크를 본문 끝에 추가한다
 - 참고 자료가 있으면 "참고 자료" 섹션에 링크를 모은다
 
 ### 톤
@@ -53,7 +68,7 @@ Supabase에 저장된 블로그 게시물을 CRUD하는 도구를 제공한다.
 - 마케팅 표현 금지 ("혁신적인", "완벽한" 등)
 - 한국어 기반이되 기술 용어는 영어 그대로 사용
 
-### 프론트매터 규칙
+### 메타데이터 규칙 (create-post 필드)
 - title: 핵심 키워드를 앞에, em dash(—)로 부연 설명 연결 (100자 이내)
 - description: 2-3문장, 글의 동기와 핵심 내용 요약 (300자 이내)
 - category: "til" | "retrospective" | "article" | "tutorial" | "infra"
@@ -67,62 +82,28 @@ const server = new McpServer(
   { instructions: WRITING_GUIDELINES },
 );
 
-// Register all tools
-server.tool(
-  getPostTool.name,
-  getPostTool.description,
-  getPostTool.inputSchema.shape,
-  getPostTool.handler,
-);
+// Register all tools using the new registerTool API
+const tools = [
+  getPostTool,
+  listPostsTool,
+  createPostTool,
+  editPostMetadataTool,
+  publishPostTool,
+  deletePostTool,
+  listTagsTool,
+  listCategoriesTool,
+];
 
-server.tool(
-  listPostsTool.name,
-  listPostsTool.description,
-  listPostsTool.inputSchema.shape,
-  listPostsTool.handler,
-);
-
-server.tool(
-  createPostTool.name,
-  createPostTool.description,
-  createPostTool.inputSchema.shape,
-  createPostTool.handler,
-);
-
-server.tool(
-  editPostMetadataTool.name,
-  editPostMetadataTool.description,
-  editPostMetadataTool.inputSchema.shape,
-  editPostMetadataTool.handler,
-);
-
-server.tool(
-  publishPostTool.name,
-  publishPostTool.description,
-  publishPostTool.inputSchema.shape,
-  publishPostTool.handler,
-);
-
-server.tool(
-  deletePostTool.name,
-  deletePostTool.description,
-  deletePostTool.inputSchema.shape,
-  deletePostTool.handler,
-);
-
-server.tool(
-  listTagsTool.name,
-  listTagsTool.description,
-  listTagsTool.inputSchema.shape,
-  listTagsTool.handler,
-);
-
-server.tool(
-  listCategoriesTool.name,
-  listCategoriesTool.description,
-  listCategoriesTool.inputSchema.shape,
-  listCategoriesTool.handler,
-);
+for (const tool of tools) {
+  server.registerTool(
+    tool.name,
+    {
+      description: tool.description,
+      inputSchema: tool.inputSchema.shape,
+    },
+    tool.handler,
+  );
+}
 
 async function main() {
   const transport = new StdioServerTransport();

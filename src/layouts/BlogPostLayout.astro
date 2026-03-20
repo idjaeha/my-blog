@@ -1,6 +1,4 @@
 ---
-import { Image } from "astro:assets";
-import type { ImageMetadata } from "astro";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import { type Locale, t } from "@/i18n";
 import { CATEGORIES, SITE } from "@/lib/constants";
@@ -17,7 +15,7 @@ interface Props {
     category: keyof typeof CATEGORIES;
     tags?: string[];
     image?: string;
-    coverImage?: ImageMetadata;
+    coverImage?: string;
     draft?: boolean;
     hasTranslations?: string[];
     translatedFrom?: string;
@@ -239,7 +237,7 @@ const jsonLd = {
 
       {
         frontmatter.coverImage && (
-          <Image
+          <img
             src={frontmatter.coverImage}
             alt={frontmatter.title}
             class="mb-8 w-full rounded-lg"
@@ -258,4 +256,23 @@ const jsonLd = {
     </aside>
   </div>
   <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+  {
+    /* Auto-initialize mermaid for Supabase posts (HTML <pre class="mermaid"> blocks) */
+  }
+  <script is:inline>
+    (function () {
+      const els = document.querySelectorAll("pre.mermaid");
+      if (els.length === 0) return;
+      import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs").then(
+        (m) => {
+          const isDark = document.documentElement.classList.contains("dark");
+          m.default.initialize({
+            startOnLoad: false,
+            theme: isDark ? "dark" : "default",
+          });
+          m.default.run({ nodes: els });
+        },
+      );
+    })();
+  </script>
 </BaseLayout>

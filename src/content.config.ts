@@ -1,9 +1,9 @@
 import { defineCollection, z } from "astro:content";
-import { glob } from "astro/loaders";
+import { supabaseBlogLoader } from "./content/supabase-loader";
 
 const blog = defineCollection({
-  loader: glob({ pattern: "**/*.mdx", base: "./src/content/blog" }),
-  schema: ({ image }) =>
+  loader: supabaseBlogLoader(),
+  schema: () =>
     z.object({
       title: z.string().max(100),
       description: z.string().max(300),
@@ -18,7 +18,7 @@ const blog = defineCollection({
       publishedDate: z.coerce.date(),
       updatedDate: z.coerce.date().optional(),
       draft: z.boolean().default(false),
-      coverImage: image().optional(),
+      coverImage: z.string().optional(),
       series: z.string().optional(),
       seriesOrder: z.number().optional(),
     }),

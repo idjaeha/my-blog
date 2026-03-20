@@ -65,105 +65,58 @@ Astro의 아일랜드 아키텍처를 활용하여 정적 셸과 인터랙티브
 | `client:idle`    | TOC, CopyCode 버튼, 검색 모달, ShareButton | 메인 스레드 여유 시 로드          |
 | No directive     | Card, Badge 등 순수 스타일링 shadcn/ui     | SSR만으로 충분, JS 불필요         |
 
-### 3.2 Content Abstraction Layer
+### 3.2 Content Architecture
 
-페이지와 컴포넌트가 Astro의 `astro:content` API를 직접 사용하지 않도록 추상화 계층을 둔다. CMS 전환 시 로더만 교체하면 된다.
+Supabase가 유일한 콘텐츠 소스. Astro 커스텀 로더(`supabaseBlogLoader`)가 빌드 시 Supabase에서 글을 fetch하고, `renderMarkdown()`로 HTML 변환 후 정적 페이지를 생성한다.
+
+```
+[Astro Build] → supabaseBlogLoader → Supabase fetch → renderMarkdown() → 정적 HTML
+```
+
+#### 콘텐츠 로더
+
+```typescript
+// src/content/supabase-loader.ts
+// Astro 커스텀 Loader: Supabase에서 posts fetch → renderMarkdown() → store.set()
+```
+
+#### Content Abstraction Layer
+
+페이지와 컴포넌트가 `astro:content` API를 직접 사용하지 않도록 ContentService 추상화를 둔다.
 
 ```typescript
 // src/lib/content/types.ts
-import type { ImageMetadata } from "astro";
-
 export interface Post {
   slug: string;
   title: string;
   description: string;
-  category: "til" | "retrospective" | "article" | "tutorial";
+  category: "til" | "retrospective" | "article" | "tutorial" | "infra";
   tags: string[];
   publishedDate: Date;
   updatedDate?: Date;
   draft: boolean;
-  coverImage?: ImageMetadata;
+  coverImage?: string;
   series?: string;
   seriesOrder?: number;
   locale: "ko" | "en";
   body: string;
-}
-
-export interface ContentService {
-  getPost(slug: string, locale?: string): Promise<Post | null>;
-  getAllPosts(locale?: string): Promise<Post[]>;
-  getPostsByTag(tag: string, locale?: string): Promise<Post[]>;
-  getPostsByCategory(category: string, locale?: string): Promise<Post[]>;
-  getAllTags(locale?: string): Promise<string[]>;
-  getAllCategories(): Promise<string[]>;
-}
-```
-
-```typescript
-// src/lib/content/astro-loader.ts
-import { getCollection, getEntry } from "astro:content";
-import type { ContentService, Post } from "./types";
-
-export class AstroContentLoader implements ContentService {
-  async getPost(slug: string, locale: string = "ko"): Promise<Post | null> {
-    const entry = await getEntry("blog", `${locale}/${slug}`);
-    if (!entry) return null;
-    return this.mapEntry(entry, locale);
-  }
-
-  async getAllPosts(locale: string = "ko"): Promise<Post[]> {
-    const entries = await getCollection("blog", (entry) => {
-      return entry.id.startsWith(`${locale}/`) && !entry.data.draft;
-    });
-    return entries
-      .map((e) => this.mapEntry(e, locale))
-      .sort((a, b) => b.publishedDate.getTime() - a.publishedDate.getTime());
-  }
-
-  async getPostsByTag(tag: string, locale: string = "ko"): Promise<Post[]> {
-    const posts = await this.getAllPosts(locale);
-    return posts.filter((p) => p.tags.includes(tag));
-  }
-
-  async getPostsByCategory(
-    category: string,
-    locale: string = "ko",
-  ): Promise<Post[]> {
-    const posts = await this.getAllPosts(locale);
-    return posts.filter((p) => p.category === category);
-  }
-
-  async getAllTags(locale: string = "ko"): Promise<string[]> {
-    const posts = await this.getAllPosts(locale);
-    const tags = new Set(posts.flatMap((p) => p.tags));
-    return [...tags].sort();
-  }
-
-  async getAllCategories(): Promise<string[]> {
-    return ["til", "retrospective", "article", "tutorial"];
-  }
-
-  private mapEntry(entry: any, locale: string): Post {
-    return {
-      slug: entry.id.replace(`${locale}/`, ""),
-      locale: locale as "ko" | "en",
-      body: entry.body,
-      ...entry.data,
-    };
-  }
+  render: () => Promise<{ Content: any }>;
 }
 ```
 
 ```typescript
 // src/lib/content/index.ts
-import { AstroContentLoader } from "./astro-loader";
-import type { ContentService } from "./types";
-
-// v1: Astro Content Collections
-// Future: swap to CMSLoader (Sanity, Contentful, etc.)
+// AstroContentLoader가 getCollection("blog")으로 Supabase 로더 데이터를 읽음
 export const contentService: ContentService = new AstroContentLoader();
-export type { ContentService, Post } from "./types";
 ```
+
+#### Markdown 렌더링
+
+Supabase 글은 Markdown으로 저장. JSX 컴포넌트 불가. 대신:
+
+- Callout → GFM Alerts (`> [!WARNING]`, remark-callout 플러그인)
+- Mermaid → 표준 코드블록 (`\`\`\`mermaid`, 클라이언트 렌더링)
+- LinkCard → 일반 Markdown 링크
 
 ### 3.3 MCP Server Architecture
 
@@ -281,10 +234,7 @@ MCP 서버는 REST API를 래핑하여 8개의 도구를 제공한다:
 │   │       └── blog/             # 블로그 이미지 (커버, 인라인)
 │   │
 │   ├── content/
-│   │   └── blog/
-│   │       ├── ko/               # 한국어 포스트 (.mdx)
-│   │       ├── en/               # 영어 포스트 (.mdx)
-│   │       └── _archive/         # 소프트 삭제된 포스트
+│   │   └── supabase-loader.ts    # Supabase 커스텀 콘텐츠 로더
 │   │
 │   ├── content.config.ts         # Zod 스키마 정의
 │   │
@@ -387,25 +337,31 @@ MCP 서버는 REST API를 래핑하여 8개의 도구를 제공한다:
 
 ## 5. Content Schema (Zod)
 
-`src/content.config.ts`에서 Astro Content Collections 스키마를 정의한다.
+`src/content.config.ts`에서 Astro Content Collections 스키마를 정의한다. Supabase 커스텀 로더를 사용한다.
 
 ```typescript
 // src/content.config.ts
 import { defineCollection, z } from "astro:content";
-import { glob } from "astro/loaders";
+import { supabaseBlogLoader } from "./content/supabase-loader";
 
 const blog = defineCollection({
-  loader: glob({ pattern: "**/*.mdx", base: "./src/content/blog" }),
-  schema: ({ image }) =>
+  loader: supabaseBlogLoader(),
+  schema: () =>
     z.object({
       title: z.string().max(100),
       description: z.string().max(300),
-      category: z.enum(["til", "retrospective", "article", "tutorial"]),
+      category: z.enum([
+        "til",
+        "retrospective",
+        "article",
+        "tutorial",
+        "infra",
+      ]),
       tags: z.array(z.string()).default([]),
       publishedDate: z.coerce.date(),
       updatedDate: z.coerce.date().optional(),
       draft: z.boolean().default(false),
-      coverImage: image().optional(),
+      coverImage: z.string().optional(),
       series: z.string().optional(),
       seriesOrder: z.number().optional(),
     }),
@@ -422,6 +378,7 @@ export const collections = { blog };
 | `retrospective` | 프로젝트 회고                    | 프로젝트 후기, 실패/성공 분석 |
 | `article`       | 기술 아티클                      | 깊이 있는 기술 분석, 비교     |
 | `tutorial`      | 튜토리얼                         | 단계별 가이드, How-to         |
+| `infra`         | 인프라 및 DevOps                 | AWS, 네트워크, 배포 설정      |
 
 ### 프론트매터 예시
 
@@ -445,16 +402,16 @@ seriesOrder: 1
 
 ### 라우팅 구조
 
-| Route (ko - 기본)   | Route (en)            | 설명                                   |
-| ------------------- | --------------------- | -------------------------------------- |
-| `/`                 | `/en`                 | 홈 - 히어로 + 최신 글 + 카테고리       |
-| `/blog`             | `/en/blog`            | 블로그 목록 (페이지네이션 + 태그 필터) |
-| `/blog/[slug]`      | `/en/blog/[slug]`     | 포스트 상세 (MDX + TOC + prev/next)    |
-| `/blog/tags`        | `/en/blog/tags`       | 전체 태그 목록                         |
-| `/blog/tags/[tag]`  | `/en/blog/tags/[tag]` | 태그별 필터링                          |
-| `/about`            | `/en/about`           | 소개 페이지                            |
-| `/rss.xml`          | `/en/rss.xml`         | RSS 피드                               |
-| `/og/[...slug].png` | -                     | 동적 OG 이미지 (빌드 타임)             |
+| Route (ko - 기본)   | Route (en)            | 설명                                     |
+| ------------------- | --------------------- | ---------------------------------------- |
+| `/`                 | `/en`                 | 홈 - 히어로 + 최신 글 + 카테고리         |
+| `/blog`             | `/en/blog`            | 블로그 목록 (페이지네이션 + 태그 필터)   |
+| `/blog/[slug]`      | `/en/blog/[slug]`     | 포스트 상세 (Markdown + TOC + prev/next) |
+| `/blog/tags`        | `/en/blog/tags`       | 전체 태그 목록                           |
+| `/blog/tags/[tag]`  | `/en/blog/tags/[tag]` | 태그별 필터링                            |
+| `/about`            | `/en/about`           | 소개 페이지                              |
+| `/rss.xml`          | `/en/rss.xml`         | RSS 피드                                 |
+| `/og/[...slug].png` | -                     | 동적 OG 이미지 (빌드 타임)               |
 
 ### i18n 전략
 
@@ -462,7 +419,7 @@ seriesOrder: 1
 - **영어**: `/en` 프리픽스
 - **언어 전환**: Header에 토글 배치
 - **SEO**: `hreflang` 태그로 대체 언어 페이지 연결
-- **콘텐츠 분리**: `src/content/blog/ko/`, `src/content/blog/en/` 병렬 디렉토리
+- **콘텐츠 분리**: Supabase 데이터베이스에서 locale 필드로 구분
 - **UI 문자열**: `src/i18n/` 디렉토리에서 관리
 
 ```typescript
@@ -551,7 +508,7 @@ export default {
 
 ### Typography
 
-- `@tailwindcss/typography` 플러그인으로 MDX 콘텐츠 스타일링
+- `@tailwindcss/typography` 플러그인으로 Markdown 콘텐츠 스타일링
 - `prose` / `dark:prose-invert` 클래스 사용
 - 커스텀 `prose` 확장으로 코드 블록, 인용 등 스타일 조정
 
@@ -577,18 +534,18 @@ export default defineConfig({
 
 ### Mermaid 다이어그램
 
-MDX 콘텐츠에서 Mermaid 다이어그램을 지원한다. `rehype-mermaid`를 사용하여 빌드 타임에 SVG로 변환하는 방식과, 클라이언트 사이드 렌더링 방식 중 **빌드 타임 변환**을 채택한다 (Zero-JS 원칙 유지).
+Markdown 콘텐츠에서 Mermaid 다이어그램을 지원한다. 커스텀 remark 플러그인(`remark-mermaid.ts`)을 사용하여 빌드 타임에 HTML로 변환한다.
 
-- **방식**: `rehype-mermaid` (빌드 타임 SVG 변환, JS 미전송)
-- **Fallback**: `MermaidDiagram.tsx` 컴포넌트로 클라이언트 렌더링도 가능 (복잡한 인터랙티브 다이어그램용)
-- **다크모드**: CSS `filter` 또는 Mermaid 테마 변수로 라이트/다크 대응
+- **방식**: 커스텀 remark 플러그인 (빌드 타임 HTML 변환)
+- **클라이언트 렌더링**: `mermaid.min.js`를 클라이언트에서 로드하여 실제 다이어그램 렌더링
+- **다크모드**: data-theme 속성으로 라이트/다크 테마 전환
 - **지원 다이어그램**: flowchart, sequence, class, state, ER, gantt, pie, mindmap 등
 
-#### 사용법 (MDX)
+#### 사용법 (Markdown)
 
-**방법 1: 코드 펜스 (빌드 타임 변환, 권장)**
+**코드 펜스**
 
-````mdx
+````markdown
 ```mermaid
 graph TD
     A[사용자 요청] --> B{인증 확인}
@@ -597,83 +554,25 @@ graph TD
 ```
 ````
 
-**방법 2: 컴포넌트 (클라이언트 렌더링, 인터랙티브 필요 시)**
-
-```mdx
-import { MermaidDiagram } from "@/components/mdx/MermaidDiagram";
-
-<MermaidDiagram
-  client:visible
-  chart={`
-  sequenceDiagram
-    Client->>+Server: POST /api/login
-    Server-->>-Client: JWT Token
-`}
-/>
-```
-
-#### Astro 설정 (rehype-mermaid)
+#### Astro 설정 (remark-mermaid)
 
 ```typescript
 // astro.config.ts (markdown 설정에 추가)
-import rehypeMermaid from "rehype-mermaid";
+import remarkMermaid from "./src/lib/remark-mermaid";
 
 export default defineConfig({
   markdown: {
-    rehypePlugins: [[rehypeMermaid, { strategy: "pre-mermaid" }]],
+    remarkPlugins: [remarkMermaid],
   },
 });
 ```
 
-#### MermaidDiagram 컴포넌트 (Fallback)
+#### 클라이언트 스크립트
 
-```tsx
-// src/components/mdx/MermaidDiagram.tsx
-// 클라이언트 사이드 렌더링이 필요한 경우에만 사용
-// mermaid.render()는 자체적으로 sanitized SVG를 생성하므로
-// DOMPurify 등 별도 sanitizer 없이 사용 가능
-// 참고: https://mermaid.js.org/config/usage.html#security
-import { useEffect, useRef } from "react";
-import mermaid from "mermaid";
-
-interface Props {
-  chart: string;
-}
-
-export function MermaidDiagram({ chart }: Props) {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!containerRef.current) return;
-
-    mermaid.initialize({
-      startOnLoad: false,
-      theme: document.documentElement.classList.contains("dark")
-        ? "dark"
-        : "default",
-      fontFamily: "inherit",
-      securityLevel: "strict",
-    });
-
-    const id = `mermaid-${Math.random().toString(36).slice(2, 9)}`;
-    mermaid.render(id, chart).then(({ svg, bindFunctions }) => {
-      if (!containerRef.current) return;
-      containerRef.current.textContent = "";
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(svg, "image/svg+xml");
-      const svgEl = doc.documentElement;
-      containerRef.current.appendChild(svgEl);
-      bindFunctions?.(svgEl);
-    });
-  }, [chart]);
-
-  return (
-    <div
-      ref={containerRef}
-      className="mermaid-diagram my-6 flex justify-center"
-    />
-  );
-}
+```typescript
+// src/lib/remark-mermaid.ts
+// Markdown의 mermaid 코드 블록을 <pre class="mermaid">로 변환
+// 실제 렌더링은 클라이언트에서 mermaid.min.js로 수행
 ```
 
 ### React Bits 사용
@@ -1114,30 +1013,27 @@ src/assets/images/blog/
 
 slug 접두사로 구분하는 플랫 구조. 이미지가 많아지면 per-slug 서브디렉토리로 마이그레이션 가능.
 
-### 인라인 이미지 (MDX 본문)
+### 인라인 이미지 (Markdown 본문)
 
-`Image.astro` 컴포넌트를 사용하여 MDX 본문에 이미지를 삽입한다. `astro:assets`의 `<Image>`를 내부적으로 사용하여 WebP 변환, width/height 자동 설정, CLS 방지를 지원한다.
+Markdown 표준 이미지 문법을 사용한다:
 
-```mdx
-import heroImg from "@/assets/images/blog/my-post-hero.png";
-import Image from "@/components/mdx/Image.astro";
-
-<Image src={heroImg} alt="스크린샷 설명" caption="선택적 캡션" />
+```markdown
+![이미지 설명](https://example.com/image.png)
 ```
 
-- `src`가 `ImageMetadata`(import한 이미지)면 → `<Image>` (최적화)
-- `src`가 `string`(외부 URL)이면 → `<img>` (호환)
+외부 URL 또는 Supabase Storage에 업로드된 이미지 URL을 사용한다.
 
 ### 커버 이미지
 
-콘텐츠 스키마의 `coverImage` 필드에 `image()` 헬퍼를 사용하여 빌드 타임 최적화를 적용한다.
+콘텐츠 스키마의 `coverImage` 필드는 문자열 URL을 받는다.
 
-프론트매터에서 상대 경로로 참조:
+MCP 서버나 API를 통해 외부 이미지 URL을 설정:
 
-```yaml
----
-coverImage: "../../../assets/images/blog/my-post-cover.png"
----
+```typescript
+// MCP create-post 예시
+{
+  coverImage: "https://example.com/cover.png";
+}
 ```
 
 커버 이미지는:
@@ -1147,11 +1043,7 @@ coverImage: "../../../assets/images/blog/my-post-cover.png"
 
 ### 최적화
 
-Astro의 `image()` 스키마 헬퍼와 `<Image>` 컴포넌트가 빌드 타임에 자동으로:
-
-- WebP 포맷 변환
-- width/height 속성 자동 설정 (CLS 방지)
-- 적절한 크기로 리사이징
+외부 이미지는 CDN이나 Supabase Storage를 통해 제공되므로 별도의 빌드 타임 최적화는 적용되지 않는다. 필요한 경우 이미지 업로드 시점에 최적화된 포맷으로 변환하여 저장한다.
 
 ---
 
@@ -1188,5 +1080,6 @@ export const CATEGORIES = {
   retrospective: { ko: "회고", en: "Retrospective" },
   article: { ko: "아티클", en: "Article" },
   tutorial: { ko: "튜토리얼", en: "Tutorial" },
+  infra: { ko: "인프라", en: "Infra" },
 } as const;
 ```

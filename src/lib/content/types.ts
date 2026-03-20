@@ -1,5 +1,3 @@
-import type { ImageMetadata } from "astro";
-
 export interface Post {
   id: string;
   slug: string;
@@ -10,7 +8,7 @@ export interface Post {
   publishedDate: Date;
   updatedDate?: Date;
   draft: boolean;
-  coverImage?: ImageMetadata;
+  coverImage?: string;
   series?: string;
   seriesOrder?: number;
   locale: "ko" | "en";

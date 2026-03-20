@@ -9,7 +9,7 @@ Astro 6 + React 19 + Tailwind CSS 4 기반의 개인 기술 블로그.
 | 프레임워크 | Astro 6 (정적 빌드)             |
 | UI         | React 19 (Islands Architecture) |
 | 스타일링   | Tailwind CSS 4 + shadcn/ui      |
-| 콘텐츠     | MDX (빌드) + Supabase (CMS)     |
+| 콘텐츠     | Supabase + Markdown             |
 | 검색       | Pagefind                        |
 | 다이어그램 | Mermaid (클라이언트 렌더링)     |
 | OG 이미지  | Satori + Sharp                  |
@@ -20,7 +20,7 @@ Astro 6 + React 19 + Tailwind CSS 4 기반의 개인 기술 블로그.
 
 - 한/영 다국어 지원 (i18n)
 - 다크모드 (시스템 설정 연동 + 수동 토글)
-- MDX 커스텀 컴포넌트 (Callout, CodeBlock, Mermaid, LinkCard)
+- Markdown 커스텀 블록 (GFM Alerts, Mermaid, 코드 하이라이팅)
 - 카테고리/태그 기반 필터링 + 페이지네이션
 - RSS 피드 (한/영 각각)
 - 동적 OG 이미지 생성
@@ -60,9 +60,8 @@ Node.js 22 이상이 필요합니다.
 │   │   ├── layout/       # Header, Footer, BaseHead
 │   │   ├── mdx/          # Callout, MermaidDiagram, LinkCard 등
 │   │   └── ui/           # shadcn/ui 컴포넌트
-│   ├── content/blog/
-│   │   ├── ko/           # 한국어 글 (MDX)
-│   │   └── en/           # 영어 글 (MDX)
+│   ├── content/
+│   │   └── supabase-loader.ts  # Supabase 커스텀 콘텐츠 로더
 │   ├── i18n/             # 다국어 번역 파일
 │   ├── layouts/          # BaseLayout, BlogPostLayout, PageLayout
 │   ├── lib/              # 유틸리티, Supabase 클라이언트
@@ -81,15 +80,15 @@ Node.js 22 이상이 필요합니다.
 
 ## 아키텍처
 
-블로그 콘텐츠는 두 가지 경로로 관리됩니다:
-
-- **빌드 시**: Astro Content Collections가 로컬 MDX 파일을 읽어 정적 페이지 생성
-- **CMS (API/MCP)**: Supabase에 저장된 데이터를 REST API와 MCP Server로 CRUD
+Supabase가 유일한 콘텐츠 소스입니다:
 
 ```
 [MCP Server] → [REST API (/api/*)] → [Supabase]
-[Astro Build] → [Content Collections] → [MDX Files]
+[Astro Build] → [supabaseBlogLoader] → [Supabase] → 정적 페이지 생성
 ```
+
+- **빌드 시**: Astro 커스텀 로더가 Supabase에서 글을 fetch → `renderMarkdown()`로 HTML 변환 → 정적 페이지 생성
+- **콘텐츠 관리**: MCP Server 또는 REST API로 Supabase CRUD
 
 ## API 엔드포인트
 

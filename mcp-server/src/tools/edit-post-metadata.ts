@@ -1,9 +1,11 @@
 import { z } from "zod";
 import { apiRequest, toolResponse } from "../utils/api-client.js";
+import { validatePost } from "../utils/validate-post.js";
 
 export const editPostMetadataTool = {
   name: "edit-post-metadata",
-  description: "Edit the metadata of an existing blog post.",
+  description:
+    "Edit the metadata or body of an existing blog post. Validates content before saving.",
   inputSchema: z.object({
     slug: z.string().describe("The post slug"),
     locale: z.enum(["ko", "en"]).default("ko").describe("Locale of the post"),
@@ -30,6 +32,25 @@ export const editPostMetadataTool = {
     locale: string;
     updates: Record<string, unknown>;
   }) => {
+    // Validate updated fields before saving
+    const errors = validatePost({
+      title: updates.title as string | undefined,
+      description: updates.description as string | undefined,
+      category: updates.category as string | undefined,
+      tags: updates.tags as string[] | undefined,
+      body: updates.body as string | undefined,
+    });
+    if (errors.length > 0) {
+      return toolResponse(
+        {
+          error: "Validation failed",
+          issues: errors,
+          hint: "Fix the issues above and retry.",
+        },
+        true,
+      );
+    }
+
     // Map camelCase to snake_case for API
     const apiUpdates: Record<string, unknown> = { locale };
     for (const [key, value] of Object.entries(updates)) {

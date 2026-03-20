@@ -5,6 +5,7 @@
 
 const API_URL = process.env.BLOG_API_URL || "http://localhost:4321/api";
 const API_KEY = process.env.BLOG_API_KEY || "";
+const VERCEL_PROTECTION_BYPASS = process.env.VERCEL_PROTECTION_BYPASS || "";
 
 interface RequestOptions {
   method?: string;
@@ -31,6 +32,10 @@ export async function apiRequest<T = unknown>(
 
   if (API_KEY) {
     headers["Authorization"] = `Bearer ${API_KEY}`;
+  }
+
+  if (VERCEL_PROTECTION_BYPASS) {
+    headers["x-vercel-protection-bypass"] = VERCEL_PROTECTION_BYPASS;
   }
 
   const res = await fetch(url.toString(), {
