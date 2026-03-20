@@ -308,8 +308,3 @@
 .mdx-content > *:first-child {
   margin-top: 0;
 }
-
-/* Mermaid dark mode */
-.dark .mermaid-diagram svg {
-  filter: invert(1) hue-rotate(180deg);
-}
