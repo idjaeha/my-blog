@@ -532,6 +532,73 @@ export default defineConfig({
 });
 ```
 
+### 코드 블록 트러블슈팅
+
+#### 문제 1: Diff 마커가 작동하지 않음
+
+**증상**: `// [!code --]`, `// [!code ++]` 주석을 사용했지만 빨간색/초록색 하이라이팅이 나타나지 않음.
+
+**원인**: `@shikijs/transformers`의 `transformerNotationDiff()`는 **class**를 추가하지만, CSS 셀렉터가 **data attribute**를 타겟팅하고 있었음.
+
+- HTML 실제 출력: `<span class="line diff add">`
+- CSS 잘못된 셀렉터: `.mdx-content [data-line][data-highlighted-chars*="add"]`
+
+**해결책**: CSS 셀렉터를 class 기반으로 변경
+
+```css
+/* globals.css */
+.mdx-content [data-line].diff.add {
+  background-color: rgba(34, 197, 94, 0.15);
+  border-left: 3px solid rgb(34, 197, 94);
+}
+
+.mdx-content [data-line].diff.remove {
+  background-color: rgba(239, 68, 68, 0.15);
+  border-left: 3px solid rgb(239, 68, 68);
+}
+```
+
+#### 문제 2: PostCSS가 CSS 규칙을 제거함
+
+**증상**: CSS 파일에는 규칙이 있지만 브라우저에서 보면 빈 규칙으로 나타남 (예: `.diff.add { }`).
+
+**원인**: `oklch()` 색상 포맷의 알파 채널 문법(`oklch(142 52% 24% / 0.15)`)을 PostCSS가 파싱하지 못하고 전체 속성을 제거함.
+
+**해결책**: 표준 `rgba()`/`rgb()` 포맷으로 변경
+
+```css
+/* 잘못된 문법 (PostCSS가 제거) */
+background-color: oklch(142 52% 24% / 0.15);
+
+/* 올바른 문법 */
+background-color: rgba(34, 197, 94, 0.15);
+```
+
+#### 문제 3: 문법 강조가 보이지 않음
+
+**증상**: TypeScript, JavaScript 등 모든 코드 블록이 단색으로 표시되고 키워드, 문자열 등이 구분되지 않음.
+
+**원인**: Shiki가 인라인 스타일로 CSS 변수를 생성(`style="--shiki-light:#6A737D"`)하지만, 이 변수를 실제 `color` 속성에 적용하는 CSS가 없었음.
+
+**해결책**: Shiki CSS 변수를 적용하는 규칙 추가
+
+```css
+/* globals.css */
+.mdx-content code span {
+  color: var(--shiki-light);
+}
+
+.dark .mdx-content code span {
+  color: var(--shiki-dark);
+}
+```
+
+**검증 방법**:
+
+1. Playwright 브라우저 자동화로 실제 렌더링된 HTML 확인
+2. `browser_evaluate`로 computed style 검사
+3. 스크린샷으로 시각적 검증
+
 ### Mermaid 다이어그램
 
 Markdown 콘텐츠에서 Mermaid 다이어그램을 지원한다. 커스텀 remark 플러그인(`remark-mermaid.ts`)을 사용하여 빌드 타임에 HTML로 변환한다.
