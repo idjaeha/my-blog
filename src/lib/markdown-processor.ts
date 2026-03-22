@@ -1,5 +1,6 @@
 import { unified } from "unified";
 import remarkParse from "remark-parse";
+import remarkGfm from "remark-gfm";
 import remarkRehype from "remark-rehype";
 import rehypeRaw from "rehype-raw";
 import rehypePrettyCode from "rehype-pretty-code";
@@ -14,6 +15,7 @@ import { remarkCallout } from "./remark-callout";
 export async function processMarkdown(markdown: string): Promise<string> {
   const result = await unified()
     .use(remarkParse)
+    .use(remarkGfm)
     .use(remarkMermaid)
     .use(remarkCallout)
     .use(remarkRehype, { allowDangerousHtml: true })
@@ -37,6 +39,14 @@ export async function processMarkdown(markdown: string): Promise<string> {
       onVisitHighlightedChars(node: any) {
         node.properties.className = ["highlighted-chars"];
       },
+      transformers: [
+        {
+          code(node: any) {
+            // Add data-line-numbers attribute to enable line numbers by default
+            node.properties["data-line-numbers"] = "";
+          },
+        },
+      ],
     })
     .use(rehypeStringify)
     .process(markdown);
