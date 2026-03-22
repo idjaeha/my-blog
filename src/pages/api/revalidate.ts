@@ -27,8 +27,12 @@ export const POST: APIRoute = async ({ request, site }) => {
     const body = (await request.json()) as RevalidateRequest;
     const { slug, locale = "ko", bypassToken } = body;
 
+    // 환경변수 가져오기 (Astro는 import.meta.env를 사용)
+    const envBypassToken = import.meta.env.ISR_BYPASS_TOKEN;
+    const envSiteUrl = import.meta.env.SITE_URL;
+
     // 1. 인증 검증
-    if (!bypassToken || bypassToken !== import.meta.env.ISR_BYPASS_TOKEN) {
+    if (!bypassToken || bypassToken !== envBypassToken) {
       return new Response(
         JSON.stringify({
           error: "Unauthorized",
@@ -56,8 +60,8 @@ export const POST: APIRoute = async ({ request, site }) => {
     }
 
     // 3. 사이트 URL 확인
-    const siteUrl = site?.toString() || import.meta.env.SITE_URL;
-    if (!siteUrl) {
+    const rawSiteUrl = site?.toString() || envSiteUrl;
+    if (!rawSiteUrl) {
       return new Response(
         JSON.stringify({
           error: "Configuration Error",
@@ -69,6 +73,9 @@ export const POST: APIRoute = async ({ request, site }) => {
         },
       );
     }
+
+    // trailing slash 제거
+    const siteUrl = rawSiteUrl.replace(/\/$/, "");
 
     // 4. 무효화할 URL 생성
     const pathPrefix = locale === "ko" ? "" : `/${locale}`;
