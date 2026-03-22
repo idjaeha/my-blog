@@ -27,7 +27,9 @@ export const createPostTool = {
     body: z
       .string()
       .optional()
-      .describe("Post body content (Markdown, NOT MDX)"),
+      .describe(
+        "Post body content (Markdown, NOT MDX). IMPORTANT: When nesting code blocks, use 4 backticks for outer blocks and 3 for inner blocks to avoid parsing issues.",
+      ),
     series: z.string().optional().describe("Series name if part of a series"),
     seriesOrder: z
       .number()
