@@ -10,7 +10,10 @@ const supabaseServiceKey = import.meta.env.SUPABASE_SERVICE_KEY;
  */
 const customFetch: typeof fetch = (input, init) => {
   if (init?.body) {
-    return fetch(input, { ...init, duplex: "half" } as RequestInit);
+    return fetch(input, {
+      ...init,
+      duplex: "half",
+    } as RequestInit & { duplex: "half" });
   }
   return fetch(input, init);
 };

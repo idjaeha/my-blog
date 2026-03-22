@@ -23,7 +23,20 @@ export function supabaseBlogLoader(): Loader {
         return;
       }
 
-      const supabase = createClient(url, key);
+      // Custom fetch wrapper for Node.js compatibility (Vercel)
+      const customFetch: typeof fetch = (input, init) => {
+        if (init?.body) {
+          return fetch(input, {
+            ...init,
+            duplex: "half",
+          } as RequestInit & { duplex: "half" });
+        }
+        return fetch(input, init);
+      };
+
+      const supabase = createClient(url, key, {
+        global: { fetch: customFetch },
+      });
 
       const { data: posts, error } = await supabase
         .from("posts")
