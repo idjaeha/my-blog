@@ -23,7 +23,7 @@ export async function processMarkdown(markdown: string): Promise<string> {
     .use(remarkGfm)
     .use(remarkMermaid)
     .use(remarkCallout)
-    .use(remarkRehype, { allowDangerousHtml: false })
+    .use(remarkRehype, { allowDangerousHtml: true })
     .use(rehypePrettyCode, {
       theme: {
         light: "github-light",

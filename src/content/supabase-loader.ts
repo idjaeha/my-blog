@@ -5,8 +5,12 @@ import remarkParse from "remark-parse";
 import remarkGfm from "remark-gfm";
 import remarkRehype from "remark-rehype";
 import rehypeRaw from "rehype-raw";
+import rehypePrettyCode from "rehype-pretty-code";
 import rehypeStringify from "rehype-stringify";
-import { remarkMermaid } from "../lib/remark-mermaid";
+import {
+  transformerNotationDiff,
+  transformerNotationHighlight,
+} from "@shikijs/transformers";
 import { remarkCallout } from "../lib/remark-callout";
 
 export function supabaseBlogLoader(): Loader {
@@ -60,9 +64,43 @@ export function supabaseBlogLoader(): Loader {
           .use(remarkParse)
           .use(remarkGfm)
           .use(remarkCallout)
-          .use(remarkMermaid)
           .use(remarkRehype, { allowDangerousHtml: true })
           .use(rehypeRaw)
+          .use(rehypePrettyCode, {
+            theme: {
+              light: "github-light",
+              dark: "github-dark",
+            },
+            keepBackground: false,
+            defaultLang: "plaintext",
+            bypassInlineCode: true,
+            onVisitLine(node: any) {
+              if (node.children.length === 0) {
+                node.children = [{ type: "text", value: " " }];
+              }
+            },
+            onVisitHighlightedLine(node: any) {
+              node.properties.className = node.properties.className || [];
+              node.properties.className.push("highlighted");
+            },
+            onVisitHighlightedChars(node: any) {
+              node.properties.className = ["highlighted-chars"];
+            },
+            transformers: [
+              transformerNotationDiff(),
+              transformerNotationHighlight(),
+              {
+                pre(node: any) {
+                  const codeEl = node.children?.find(
+                    (child: any) => child.tagName === "code",
+                  );
+                  if (codeEl) {
+                    codeEl.properties["data-line-numbers"] = "";
+                  }
+                },
+              },
+            ],
+          })
           .use(rehypeStringify)
           .process(body);
 
