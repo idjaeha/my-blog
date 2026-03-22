@@ -216,27 +216,168 @@
   border-radius: 0.25rem;
   font-size: 0.875em;
   font-weight: 500;
+  color: var(--foreground);
 }
 
-/* Code blocks */
-.mdx-content pre {
-  background-color: var(--muted);
+/* Code blocks - rehype-pretty-code */
+.mdx-content figure[data-rehype-pretty-code-figure] {
+  position: relative;
+  margin: 1.5em 0;
+  overflow: hidden;
   border-radius: 0.5rem;
-  padding: 1em 1.25em;
+  border: 1px solid var(--border);
+  background-color: var(--muted);
+}
+
+/* Filename header (figcaption) */
+.mdx-content figcaption[data-rehype-pretty-code-title] {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  background-color: var(--accent);
+  border-bottom: 1px solid var(--border);
+}
+
+/* Pre element */
+.mdx-content figure[data-rehype-pretty-code-figure] > pre {
+  padding: 1rem 0;
+  margin: 0;
   overflow-x: auto;
   font-size: 0.875em;
   line-height: 1.7;
-  margin-top: 1.5em;
-  margin-bottom: 1.5em;
-  border: 1px solid var(--border);
+  background: transparent;
+  border: none;
 }
 
-.mdx-content pre code {
-  background: none;
+/* Code element */
+.mdx-content figure[data-rehype-pretty-code-figure] code {
+  display: grid;
+  background: transparent;
   padding: 0;
   border-radius: 0;
   font-size: inherit;
   font-weight: inherit;
+  counter-reset: line;
+}
+
+/* Line spans */
+.mdx-content code[data-line-numbers] > [data-line]::before {
+  counter-increment: line;
+  content: counter(line);
+  display: inline-block;
+  width: 1rem;
+  margin-right: 1.5rem;
+  margin-left: 1rem;
+  text-align: right;
+  color: var(--muted-foreground);
+  opacity: 0.5;
+}
+
+.mdx-content code:not([data-line-numbers]) > [data-line] {
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
+}
+
+/* Highlighted line */
+.mdx-content [data-line].highlighted {
+  background-color: oklch(var(--accent) / 0.1);
+  border-left: 3px solid oklch(var(--primary) / 0.7);
+}
+
+.mdx-content code[data-line-numbers] > [data-line].highlighted::before {
+  color: var(--foreground);
+  opacity: 1;
+}
+
+/* Highlighted chars */
+.mdx-content .highlighted-chars {
+  background-color: oklch(var(--primary) / 0.2);
+  border-radius: 0.25rem;
+  padding: 0.125rem 0.25rem;
+}
+
+/* Diff lines - added */
+.mdx-content [data-line][data-highlighted-chars*="add"] {
+  background-color: oklch(142 52% 24% / 0.15);
+  border-left: 3px solid oklch(142 52% 24%);
+}
+
+.dark .mdx-content [data-line][data-highlighted-chars*="add"] {
+  background-color: oklch(142 52% 69% / 0.15);
+  border-left-color: oklch(142 52% 69%);
+}
+
+/* Diff lines - removed */
+.mdx-content [data-line][data-highlighted-chars*="remove"] {
+  background-color: oklch(348 83% 47% / 0.15);
+  border-left: 3px solid oklch(348 83% 47%);
+}
+
+.dark .mdx-content [data-line][data-highlighted-chars*="remove"] {
+  background-color: oklch(348 83% 81% / 0.15);
+  border-left-color: oklch(348 83% 81%);
+}
+
+/* Language label */
+.mdx-content figure[data-rehype-pretty-code-figure] > pre::before {
+  content: attr(data-language);
+  position: absolute;
+  top: 0.5rem;
+  right: 3.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  opacity: 0.7;
+  letter-spacing: 0.05em;
+}
+
+/* Hide language label when filename is present */
+.mdx-content figcaption[data-rehype-pretty-code-title] + pre::before {
+  display: none;
+}
+
+/* Copy button styling (will be added by JS) */
+.mdx-content .copy-button {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  background-color: var(--accent);
+  border: 1px solid var(--border);
+  color: var(--muted-foreground);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 0.2s,
+    background-color 0.2s;
+  z-index: 10;
+}
+
+.mdx-content figure[data-rehype-pretty-code-figure]:hover .copy-button {
+  opacity: 1;
+}
+
+.mdx-content .copy-button:hover {
+  background-color: var(--muted);
+}
+
+.mdx-content .copy-button.copied {
+  color: oklch(142 52% 24%);
+}
+
+.dark .mdx-content .copy-button.copied {
+  color: oklch(142 52% 69%);
+}
+
+.mdx-content .copy-button svg {
+  width: 1rem;
+  height: 1rem;
+  display: block;
 }
 
 /* Blockquotes */

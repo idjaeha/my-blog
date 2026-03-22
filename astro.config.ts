@@ -5,6 +5,7 @@ import sitemap from "@astrojs/sitemap";
 import vercel from "@astrojs/vercel";
 import tailwindcss from "@tailwindcss/vite";
 import rehypeRaw from "rehype-raw";
+import rehypePrettyCode from "rehype-pretty-code";
 import { remarkMermaid } from "./src/lib/remark-mermaid";
 import { remarkCallout } from "./src/lib/remark-callout";
 
@@ -18,13 +19,33 @@ export default defineConfig({
   },
   markdown: {
     remarkPlugins: [remarkMermaid, remarkCallout],
-    rehypePlugins: [rehypeRaw],
-    shikiConfig: {
-      themes: {
-        light: "github-light",
-        dark: "github-dark",
-      },
-    },
+    rehypePlugins: [
+      rehypeRaw,
+      [
+        rehypePrettyCode,
+        {
+          theme: {
+            light: "github-light",
+            dark: "github-dark",
+          },
+          keepBackground: false,
+          defaultLang: "plaintext",
+          onVisitLine(node: any) {
+            // Prevent empty lines from collapsing
+            if (node.children.length === 0) {
+              node.children = [{ type: "text", value: " " }];
+            }
+          },
+          onVisitHighlightedLine(node: any) {
+            node.properties.className = node.properties.className || [];
+            node.properties.className.push("highlighted");
+          },
+          onVisitHighlightedChars(node: any) {
+            node.properties.className = ["highlighted-chars"];
+          },
+        },
+      ],
+    ],
   },
   i18n: {
     defaultLocale: "ko",

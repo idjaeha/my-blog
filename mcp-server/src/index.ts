@@ -37,6 +37,47 @@ Supabase에 저장된 블로그 게시물을 CRUD하는 도구를 제공한다.
 - 코드 블록에는 명령어 + 예상 출력을 함께 보여준다
 - em dash(—)로 문장 전환을 자연스럽게 연결한다
 
+### 코드 블록 (고급 기능 지원)
+블로그는 rehype-pretty-code를 사용하여 다양한 코드 블록 기능을 지원한다:
+
+- 기본 문법:
+  \`\`\`언어
+  코드 내용
+  \`\`\`
+
+- 라인 하이라이트 (특정 라인 강조):
+  \`\`\`js {1,3-5}
+  const a = 1;  // 1번 라인 하이라이트
+  const b = 2;
+  const c = 3;  // 3-5번 라인 하이라이트
+  const d = 4;
+  const e = 5;
+  \`\`\`
+
+- 파일명 표시 (헤더에 파일명 표시):
+  \`\`\`typescript title="config.ts"
+  export default { name: 'app' }
+  \`\`\`
+
+- Diff 표시 (추가/삭제 라인):
+  \`\`\`js
+  const old = 1; // [!code --]
+  const new = 2; // [!code ++]
+  \`\`\`
+
+- 복합 사용 (여러 기능 조합):
+  \`\`\`typescript title="app.ts" {2-4}
+  function main() {
+    console.log('start');  // 하이라이트
+    doSomething();         // 하이라이트
+    console.log('end');    // 하이라이트
+  }
+  \`\`\`
+
+- 라인 번호는 기본적으로 자동 표시됨
+- 복사 버튼은 자동으로 추가됨 (호버 시 표시)
+- 언어 라벨은 우측 상단에 자동 표시됨
+
 ### 특수 블록 (Markdown 문법 — JSX 금지)
 이 MCP로 작성하는 글은 Markdown으로 렌더링된다. JSX 컴포넌트(<Callout>, <LinkCard>)는 사용 불가.
 대신 아래 Markdown 문법을 사용한다:
