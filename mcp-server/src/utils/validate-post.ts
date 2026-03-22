@@ -112,10 +112,24 @@ function validateBody(body: string): string[] {
     }
   }
 
-  // Check heading hierarchy
+  // Check heading hierarchy (skip code blocks)
   let hasH1 = false;
+  let inCodeBlock = false;
   for (const line of lines) {
     const trimmed = line.trimStart();
+
+    // Track code block boundaries
+    if (trimmed.startsWith("```")) {
+      inCodeBlock = !inCodeBlock;
+      continue;
+    }
+
+    // Skip lines inside code blocks
+    if (inCodeBlock) {
+      continue;
+    }
+
+    // Check for H1 headings (# but not ##)
     if (trimmed.startsWith("# ") && !trimmed.startsWith("## ")) {
       hasH1 = true;
       break;
