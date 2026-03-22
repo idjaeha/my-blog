@@ -31,6 +31,10 @@ export function remarkMermaid() {
     // or if we can create them (MDX processor adds support for these types)
     const isMdx = isMdxContext(tree);
 
+    console.log(
+      `[remarkMermaid] Found ${mermaidNodes.length} mermaid blocks, isMdx: ${isMdx}`,
+    );
+
     if (isMdx) {
       // MDX mode: create JSX component nodes
       for (const { node, index, parent } of mermaidNodes) {

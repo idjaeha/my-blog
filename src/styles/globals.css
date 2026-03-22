@@ -287,9 +287,13 @@
   opacity: 0.5;
 }
 
+.mdx-content code[data-line-numbers] > [data-line] {
+  padding-right: 5rem; /* 언어 라벨과 복사 버튼 공간 확보 */
+}
+
 .mdx-content code:not([data-line-numbers]) > [data-line] {
   padding-left: 1.25rem;
-  padding-right: 1.25rem;
+  padding-right: 5rem; /* 언어 라벨과 복사 버튼 공간 확보 */
 }
 
 /* Highlighted line */

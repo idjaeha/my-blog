@@ -1,0 +1,4 @@
+[      51ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:4322/blog/blog-dev-log-7-isr-edge-function:0
+[   44732ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:4322/blog/blog-dev-log-7-isr-edge-function:0
+[   71295ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:4322/blog/blog-dev-log-7-isr-edge-function:0
+[   76229ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:4322/blog/blog-dev-log-7-isr-edge-function:0
