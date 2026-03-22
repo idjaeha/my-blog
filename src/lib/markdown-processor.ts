@@ -5,8 +5,13 @@ import remarkRehype from "remark-rehype";
 import rehypeRaw from "rehype-raw";
 import rehypePrettyCode from "rehype-pretty-code";
 import rehypeStringify from "rehype-stringify";
+import {
+  transformerNotationDiff,
+  transformerNotationHighlight,
+} from "@shikijs/transformers";
 import { remarkMermaid } from "./remark-mermaid";
 import { remarkCallout } from "./remark-callout";
+import type { Element } from "hast";
 
 /**
  * Process Markdown content from Supabase and apply the same
@@ -18,8 +23,7 @@ export async function processMarkdown(markdown: string): Promise<string> {
     .use(remarkGfm)
     .use(remarkMermaid)
     .use(remarkCallout)
-    .use(remarkRehype, { allowDangerousHtml: true })
-    .use(rehypeRaw)
+    .use(remarkRehype, { allowDangerousHtml: false })
     .use(rehypePrettyCode, {
       theme: {
         light: "github-light",
@@ -27,6 +31,7 @@ export async function processMarkdown(markdown: string): Promise<string> {
       },
       keepBackground: false,
       defaultLang: "plaintext",
+      bypassInlineCode: true,
       onVisitLine(node: any) {
         if (node.children.length === 0) {
           node.children = [{ type: "text", value: " " }];
@@ -40,14 +45,22 @@ export async function processMarkdown(markdown: string): Promise<string> {
         node.properties.className = ["highlighted-chars"];
       },
       transformers: [
+        transformerNotationDiff(),
+        transformerNotationHighlight(),
         {
-          code(node: any) {
-            // Add data-line-numbers attribute to enable line numbers by default
-            node.properties["data-line-numbers"] = "";
+          pre(node: any) {
+            // Add data-line-numbers to code blocks (pre > code)
+            const codeEl = node.children?.find(
+              (child: any) => child.tagName === "code",
+            );
+            if (codeEl) {
+              codeEl.properties["data-line-numbers"] = "";
+            }
           },
         },
       ],
     })
+    .use(rehypeRaw)
     .use(rehypeStringify)
     .process(markdown);
 

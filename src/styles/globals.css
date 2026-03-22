@@ -209,8 +209,8 @@
   margin-bottom: 0.5em;
 }
 
-/* Inline code */
-.mdx-content :not(pre) > code {
+/* Inline code - only for code NOT inside figure/pre blocks */
+.mdx-content :not(pre):not(figure) > code {
   background-color: var(--muted);
   padding: 0.15em 0.3em;
   border-radius: 0.25rem;
@@ -265,6 +265,15 @@
   counter-reset: line;
 }
 
+/* Syntax highlighting colors */
+.mdx-content code span {
+  color: var(--shiki-light);
+}
+
+.dark .mdx-content code span {
+  color: var(--shiki-dark);
+}
+
 /* Line spans */
 .mdx-content code[data-line-numbers] > [data-line]::before {
   counter-increment: line;
@@ -285,8 +294,8 @@
 
 /* Highlighted line */
 .mdx-content [data-line].highlighted {
-  background-color: oklch(var(--accent) / 0.1);
-  border-left: 3px solid oklch(var(--primary) / 0.7);
+  background-color: color-mix(in oklch, var(--accent) 20%, transparent);
+  border-left: 3px solid var(--primary);
 }
 
 .mdx-content code[data-line-numbers] > [data-line].highlighted::before {
@@ -294,33 +303,42 @@
   opacity: 1;
 }
 
+.dark .mdx-content [data-line].highlighted {
+  background-color: color-mix(in oklch, var(--accent) 15%, transparent);
+  border-left-color: color-mix(in oklch, var(--primary) 80%, transparent);
+}
+
 /* Highlighted chars */
 .mdx-content .highlighted-chars {
-  background-color: oklch(var(--primary) / 0.2);
+  background-color: color-mix(in oklch, var(--primary) 25%, transparent);
   border-radius: 0.25rem;
   padding: 0.125rem 0.25rem;
 }
 
-/* Diff lines - added */
-.mdx-content [data-line][data-highlighted-chars*="add"] {
-  background-color: oklch(142 52% 24% / 0.15);
-  border-left: 3px solid oklch(142 52% 24%);
+.dark .mdx-content .highlighted-chars {
+  background-color: color-mix(in oklch, var(--primary) 20%, transparent);
 }
 
-.dark .mdx-content [data-line][data-highlighted-chars*="add"] {
-  background-color: oklch(142 52% 69% / 0.15);
-  border-left-color: oklch(142 52% 69%);
+/* Diff lines - added */
+.mdx-content [data-line].diff.add {
+  background-color: rgba(34, 197, 94, 0.15);
+  border-left: 3px solid rgb(34, 197, 94);
+}
+
+.dark .mdx-content [data-line].diff.add {
+  background-color: rgba(134, 239, 172, 0.15);
+  border-left-color: rgb(134, 239, 172);
 }
 
 /* Diff lines - removed */
-.mdx-content [data-line][data-highlighted-chars*="remove"] {
-  background-color: oklch(348 83% 47% / 0.15);
-  border-left: 3px solid oklch(348 83% 47%);
+.mdx-content [data-line].diff.remove {
+  background-color: rgba(239, 68, 68, 0.15);
+  border-left: 3px solid rgb(239, 68, 68);
 }
 
-.dark .mdx-content [data-line][data-highlighted-chars*="remove"] {
-  background-color: oklch(348 83% 81% / 0.15);
-  border-left-color: oklch(348 83% 81%);
+.dark .mdx-content [data-line].diff.remove {
+  background-color: rgba(252, 165, 165, 0.15);
+  border-left-color: rgb(252, 165, 165);
 }
 
 /* Language label */
