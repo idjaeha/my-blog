@@ -1,0 +1,45 @@
+import { unified } from "unified";
+import remarkParse from "remark-parse";
+import remarkRehype from "remark-rehype";
+import rehypeRaw from "rehype-raw";
+import rehypePrettyCode from "rehype-pretty-code";
+import rehypeStringify from "rehype-stringify";
+import { remarkMermaid } from "./remark-mermaid";
+import { remarkCallout } from "./remark-callout";
+
+/**
+ * Process Markdown content from Supabase and apply the same
+ * remark/rehype pipeline as Astro's markdown processing.
+ */
+export async function processMarkdown(markdown: string): Promise<string> {
+  const result = await unified()
+    .use(remarkParse)
+    .use(remarkMermaid)
+    .use(remarkCallout)
+    .use(remarkRehype, { allowDangerousHtml: true })
+    .use(rehypeRaw)
+    .use(rehypePrettyCode, {
+      theme: {
+        light: "github-light",
+        dark: "github-dark",
+      },
+      keepBackground: false,
+      defaultLang: "plaintext",
+      onVisitLine(node: any) {
+        if (node.children.length === 0) {
+          node.children = [{ type: "text", value: " " }];
+        }
+      },
+      onVisitHighlightedLine(node: any) {
+        node.properties.className = node.properties.className || [];
+        node.properties.className.push("highlighted");
+      },
+      onVisitHighlightedChars(node: any) {
+        node.properties.className = ["highlighted-chars"];
+      },
+    })
+    .use(rehypeStringify)
+    .process(markdown);
+
+  return String(result);
+}
