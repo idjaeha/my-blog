@@ -1,0 +1,127 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import { SITE } from "@/lib/constants";
+import type { Locale } from "@/i18n";
+
+const locale: Locale = "ko";
+
+interface ProjectLink {
+  label: string;
+  href: string;
+}
+
+interface Project {
+  name: string;
+  tagline: string;
+  description: string;
+  links: ProjectLink[];
+}
+
+const projects: Project[] = [
+  {
+    name: "daily-feed",
+    tagline: "매일 두 번, Claude가 정리해주는 한국어 뉴스 카드 사이트.",
+    description:
+      "Next.js 16 + Vercel. Windows Task Scheduler가 09:00·18:00 KST에 종합 뉴스, 10:00에 AI 뉴스를 돌린다. 토큰 룰로 카드 톤이 통일된다.",
+    links: [{ label: "Live", href: "https://daily-feed-virid.vercel.app" }],
+  },
+  {
+    name: "idea-cycles",
+    tagline:
+      "매일 새벽 5시, 6단계 LLM 파이프라인이 30분짜리 웹 데모를 한 편씩 자동 배포한다.",
+    description:
+      "Tech Scout → Ideator → Picker → Implementer → QA Tester → Reviewer. Playwright MCP가 커밋 전에 실제 브라우저로 검증한다.",
+    links: [
+      { label: "Live", href: "https://idea-cycles.vercel.app" },
+      {
+        label: "Series",
+        href: "/blog/series/%EC%95%84%EC%9D%B4%EB%94%94%EC%96%B4%20%EC%82%AC%EC%9D%B4%ED%81%B4%20%ED%9A%8C%EA%B3%A0",
+      },
+    ],
+  },
+  {
+    name: "mini-arcade",
+    tagline:
+      "한국 전통 미감으로 칠한 광고 기반 미니게임 사이트, 첫 게임은 알까기.",
+    description:
+      "Astro 5 + React 19 islands. 카탈로그는 0KB JS 정적 HTML, 게임만 client:visible로 hydrate. Matter.js 물리 + Web Audio.",
+    links: [],
+  },
+  {
+    name: "my-blog",
+    tagline:
+      "이 블로그 — Astro 6 + Supabase + MCP로 콘텐츠 관리까지 자동화한 개인 사이트.",
+    description:
+      "Pagefind 검색, Satori OG 이미지, RSS, i18n. 글은 mcp-server를 통해 Claude가 직접 작성·발행하고, mutation 직후 ISR을 self-revalidate한다.",
+    links: [
+      { label: "Live", href: "https://my-blog.site" },
+      { label: "GitHub", href: "https://github.com/idjaeha/my-blog" },
+    ],
+  },
+  {
+    name: "playground-ops",
+    tagline:
+      "D:/playground/ 아래 모든 스케줄 루틴을 YAML 한 파일로 관리하는 ops 레이어.",
+    description:
+      "schedules.yaml이 source of truth. register.ps1이 Task Scheduler 동기화, audit.ps1이 매일 drift를 잡아 텔레그램 토픽으로 알림.",
+    links: [],
+  },
+  {
+    name: "telegram-claude-bot",
+    tagline:
+      "텔레그램에서 Windows PC의 Claude Code를 원격 조작하는 1인용 브릿지 봇.",
+    description:
+      "포럼 토픽 = 프로젝트 1개. Hub-and-spoke로 토픽마다 독립 SDK 세션. 라이브 메시지·MCP 통합·자가 재시작까지.",
+    links: [
+      {
+        label: "Series",
+        href: "/blog/series/%ED%85%94%EB%A0%88%EA%B7%B8%EB%9E%A8%20%EB%B4%87%20%EA%B0%9C%EB%B0%9C%20%EC%9D%BC%EC%A7%80",
+      },
+    ],
+  },
+];
+---
+
+<BaseLayout
+  title={`Projects - ${SITE.title}`}
+  description="재하가 운영 중인 개인 프로젝트 모음."
+  locale={locale}
+>
+  <section class="mx-auto max-w-3xl px-4 py-10">
+    <h1 class="mb-2 text-3xl font-bold tracking-tight">Projects</h1>
+    <p class="mb-8 text-muted-foreground">
+      D:/playground/ 아래 폴더 단위로 살고, 텔레그램 봇이 토픽 단위로 관리하는
+      6개 프로젝트.
+    </p>
+
+    <div class="grid gap-4">
+      {
+        projects.map((p) => (
+          <article class="rounded-md border bg-card p-5 text-card-foreground transition-colors hover:bg-secondary/40">
+            <h2 class="mb-1 text-lg font-semibold">
+              <code class="rounded bg-muted px-1.5 py-0.5 text-sm">
+                {p.name}
+              </code>
+            </h2>
+            <p class="mb-2 text-sm font-medium">{p.tagline}</p>
+            <p class="mb-3 text-sm text-muted-foreground">{p.description}</p>
+            {p.links.length > 0 && (
+              <div class="flex flex-wrap gap-2">
+                {p.links.map((l) => (
+                  <a
+                    href={l.href}
+                    class="rounded-md bg-secondary px-2.5 py-1 text-xs text-secondary-foreground transition-colors hover:bg-secondary/80"
+                    target={l.href.startsWith("http") ? "_blank" : undefined}
+                    rel={l.href.startsWith("http") ? "noopener" : undefined}
+                  >
+                    {l.label}
+                  </a>
+                ))}
+              </div>
+            )}
+          </article>
+        ))
+      }
+    </div>
+  </section>
+</BaseLayout>
