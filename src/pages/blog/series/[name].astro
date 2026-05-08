@@ -1,0 +1,46 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import PostList from "@/components/blog/PostList.astro";
+import { contentService } from "@/lib/content";
+import { t } from "@/i18n";
+import type { Locale } from "@/i18n";
+import { SITE } from "@/lib/constants";
+
+export async function getStaticPaths() {
+  const locale: Locale = "ko";
+  const seriesList = await contentService.getAllSeries(locale);
+
+  return seriesList.map((name) => ({
+    params: { name },
+  }));
+}
+
+const locale: Locale = "ko";
+const { name } = Astro.params;
+const seriesName = decodeURIComponent(name!);
+const posts = await contentService.getPostsBySeries(seriesName, locale);
+---
+
+<BaseLayout
+  title={`${seriesName} - Series - ${SITE.title}`}
+  description={`시리즈: ${seriesName}`}
+  locale={locale}
+>
+  <section class="mx-auto max-w-3xl px-4 py-10">
+    <nav class="mb-6 text-sm text-muted-foreground">
+      <a href="/blog/series" class="transition-colors hover:text-foreground"
+        >Series</a
+      >
+      <span class="mx-2">/</span>
+      <span>{seriesName}</span>
+    </nav>
+
+    <h1 class="mb-2 text-3xl font-bold tracking-tight">{seriesName}</h1>
+    <p class="mb-8 text-muted-foreground">
+      {posts.length}
+      {t("blog.postsCount", locale)}
+    </p>
+
+    <PostList posts={posts} locale={locale} />
+  </section>
+</BaseLayout>

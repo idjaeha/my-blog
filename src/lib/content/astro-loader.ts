@@ -31,6 +31,20 @@ export class AstroContentLoader implements ContentService {
     return posts.filter((p) => p.category === category);
   }
 
+  async getPostsBySeries(
+    series: string,
+    locale: string = "ko",
+  ): Promise<Post[]> {
+    const posts = await this.getAllPosts(locale);
+    return posts
+      .filter((p) => p.series === series)
+      .sort(
+        (a, b) =>
+          (a.seriesOrder ?? Number.MAX_SAFE_INTEGER) -
+          (b.seriesOrder ?? Number.MAX_SAFE_INTEGER),
+      );
+  }
+
   async getAllTags(locale: string = "ko"): Promise<string[]> {
     const posts = await this.getAllPosts(locale);
     const tags = new Set(posts.flatMap((p) => p.tags));
@@ -41,6 +55,14 @@ export class AstroContentLoader implements ContentService {
     const posts = await this.getAllPosts(locale);
     const categories = new Set(posts.map((p) => p.category));
     return [...categories].sort();
+  }
+
+  async getAllSeries(locale: string = "ko"): Promise<string[]> {
+    const posts = await this.getAllPosts(locale);
+    const series = new Set(
+      posts.map((p) => p.series).filter((s): s is string => Boolean(s)),
+    );
+    return [...series].sort();
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

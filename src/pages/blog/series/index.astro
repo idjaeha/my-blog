@@ -1,0 +1,55 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import { contentService } from "@/lib/content";
+import { t } from "@/i18n";
+import type { Locale } from "@/i18n";
+import { SITE } from "@/lib/constants";
+
+const locale: Locale = "ko";
+const seriesList = await contentService.getAllSeries(locale);
+const allPosts = await contentService.getAllPosts(locale);
+
+const seriesCounts = new Map<string, number>();
+for (const name of seriesList) {
+  const count = allPosts.filter((p) => p.series === name).length;
+  seriesCounts.set(name, count);
+}
+---
+
+<BaseLayout
+  title={`Series - ${SITE.title}`}
+  description="블로그에 연재된 시리즈 모음"
+  locale={locale}
+>
+  <section class="mx-auto max-w-3xl px-4 py-10">
+    <h1 class="mb-2 text-3xl font-bold tracking-tight">Series</h1>
+    <p class="mb-6 text-muted-foreground">
+      {seriesList.length}
+      {t("blog.postsCount", locale)}
+    </p>
+
+    {
+      seriesList.length > 0 ? (
+        <ul class="grid gap-3">
+          {seriesList.map((name) => (
+            <li>
+              <a
+                href={`/blog/series/${encodeURIComponent(name)}`}
+                class="flex items-center justify-between rounded-md border bg-card px-4 py-3 text-card-foreground transition-colors hover:bg-secondary/60"
+              >
+                <span class="font-medium">{name}</span>
+                <span class="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                  {seriesCounts.get(name)} 편
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p class="py-12 text-center text-muted-foreground">
+          {t("blog.noPosts", locale)}
+        </p>
+      )
+    }
+  </section>
+</BaseLayout>

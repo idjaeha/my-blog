@@ -63,6 +63,39 @@ export class SupabaseContentLoader implements ContentService {
     return data.map((row) => this.mapRow(row));
   }
 
+  async getPostsBySeries(
+    series: string,
+    locale: string = "ko",
+  ): Promise<Post[]> {
+    const { data, error } = await supabase
+      .from("posts")
+      .select("*")
+      .eq("locale", locale)
+      .eq("series", series)
+      .eq("draft", false)
+      .is("archived_at", null)
+      .order("series_order", { ascending: true });
+
+    if (error || !data) return [];
+    return data.map((row) => this.mapRow(row));
+  }
+
+  async getAllSeries(locale: string = "ko"): Promise<string[]> {
+    const { data, error } = await supabase
+      .from("posts")
+      .select("series")
+      .eq("locale", locale)
+      .eq("draft", false)
+      .is("archived_at", null)
+      .not("series", "is", null);
+
+    if (error || !data) return [];
+    const series = new Set(
+      data.map((row) => row.series).filter((s): s is string => Boolean(s)),
+    );
+    return [...series].sort();
+  }
+
   async getAllTags(locale: string = "ko"): Promise<string[]> {
     const { data, error } = await supabase
       .from("posts")
