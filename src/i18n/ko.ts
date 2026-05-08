@@ -22,7 +22,7 @@ const ko: Record<string, string> = {
   "blog.next": "다음",
   "blog.page": "페이지",
   "about.title": "소개",
-  "about.description": "재하에 대해",
+  "about.description": "소개",
   "search.placeholder": "검색어를 입력하세요...",
   "search.noResults": "검색 결과가 없습니다",
   "blog.share": "공유",

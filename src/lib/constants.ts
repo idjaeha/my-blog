@@ -1,9 +1,9 @@
 export const SITE = {
-  title: "재하의 개발 블로그",
-  description: "재하의 개발 블로그 - TIL, 프로젝트 회고, 기술 아티클",
+  title: "개발 블로그",
+  description: "TIL, 프로젝트 회고, 기술 아티클을 모은 개인 블로그",
   url: "https://my-blog.site",
   author: {
-    name: "재하",
+    name: "개발자",
     email: undefined as string | undefined, // Optional: Add your email
     url: undefined as string | undefined, // Optional: Add your personal website/portfolio URL
     social: {
