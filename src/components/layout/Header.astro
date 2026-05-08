@@ -12,6 +12,10 @@ const alternateLabel = locale === "ko" ? "EN" : "한국어";
 const navLinks = [
   { href: getLocalizedPath("/", locale), label: t("nav.home", locale) },
   { href: getLocalizedPath("/blog", locale), label: t("nav.blog", locale) },
+  {
+    href: getLocalizedPath("/projects", locale),
+    label: t("nav.projects", locale),
+  },
   { href: getLocalizedPath("/about", locale), label: t("nav.about", locale) },
 ];
 

@@ -2,6 +2,7 @@ const ko: Record<string, string> = {
   "nav.home": "홈",
   "nav.blog": "블로그",
   "nav.about": "소개",
+  "nav.projects": "프로젝트",
   "blog.readMore": "더 읽기",
   "blog.publishedOn": "작성일",
   "blog.updatedOn": "수정일",
