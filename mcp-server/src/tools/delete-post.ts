@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { apiRequest, toolResponse } from "../utils/api-client.js";
+import { triggerRevalidate } from "../utils/revalidate.js";
 
 export const deletePostTool = {
   name: "delete-post",
@@ -15,6 +16,11 @@ export const deletePostTool = {
     });
 
     if (error) return toolResponse({ error }, true);
-    return toolResponse(data);
+
+    const revalidated = await triggerRevalidate(slug, locale);
+    return toolResponse({
+      ...(data as Record<string, unknown>),
+      _revalidated: revalidated,
+    });
   },
 };

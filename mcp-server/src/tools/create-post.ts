@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { apiRequest, toolResponse } from "../utils/api-client.js";
 import { validatePost } from "../utils/validate-post.js";
+import { triggerRevalidate } from "../utils/revalidate.js";
 
 export const createPostTool = {
   name: "create-post",
@@ -101,6 +102,12 @@ export const createPostTool = {
     });
 
     if (error) return toolResponse({ error }, true);
+
+    const post = data as { draft?: boolean } | null;
+    if (post && post.draft === false) {
+      const revalidated = await triggerRevalidate(slug, locale);
+      return toolResponse({ ...post, _revalidated: revalidated });
+    }
     return toolResponse(data);
   },
 };
