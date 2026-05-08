@@ -1,6 +1,7 @@
 import type { APIRoute } from "astro";
 import { supabaseAdmin } from "@/lib/supabase";
 import { validateApiKey, unauthorized, json } from "@/lib/api/auth";
+import { selfRevalidate } from "@/lib/revalidate-helper";
 
 export const prerender = false;
 
@@ -79,7 +80,9 @@ export const PATCH: APIRoute = async ({ params, request }) => {
     .single();
 
   if (error || !data) return json({ error: "Post not found" }, 404);
-  return json(data);
+
+  const revalidated = await selfRevalidate(slug!, locale, request);
+  return json({ ...data, _selfRevalidated: revalidated });
 };
 
 /** DELETE /api/posts/[slug]?locale=ko — Soft delete a post (requires API key) */
@@ -101,5 +104,12 @@ export const DELETE: APIRoute = async ({ params, request }) => {
     .single();
 
   if (error || !data) return json({ error: "Post not found" }, 404);
-  return json({ message: "Post archived", slug, locale });
+
+  const revalidated = await selfRevalidate(slug!, locale, request);
+  return json({
+    message: "Post archived",
+    slug,
+    locale,
+    _selfRevalidated: revalidated,
+  });
 };

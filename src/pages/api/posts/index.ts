@@ -1,6 +1,7 @@
 import type { APIRoute } from "astro";
 import { supabaseAdmin } from "@/lib/supabase";
 import { validateApiKey, unauthorized, json } from "@/lib/api/auth";
+import { selfRevalidate } from "@/lib/revalidate-helper";
 
 export const prerender = false;
 
@@ -92,5 +93,9 @@ export const POST: APIRoute = async ({ request }) => {
     return json({ error: error.message }, 500);
   }
 
+  if (data && (data as { draft?: boolean }).draft === false) {
+    const revalidated = await selfRevalidate(slug, locale, request);
+    return json({ ...data, _selfRevalidated: revalidated }, 201);
+  }
   return json(data, 201);
 };
