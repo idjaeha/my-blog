@@ -56,6 +56,7 @@ CI (`.github/workflows/ci.yml`)가 `typecheck → lint → test → test:mcp →
   사람이 직접 글을 손볼 때도 동일 규칙을 따른다.
 - **컴포넌트**: `src/components/ui/`는 shadcn/ui 생성 파일. 가능하면 직접
   수정 대신 shadcn CLI로 재생성하는 쪽을 우선 고려.
+- **Scheduling**: do not call `Register-ScheduledTask` or `schtasks /create` directly. Edit `D:/playground/playground-ops/schedules.yaml` and run `pwsh -File D:/playground/playground-ops/scripts/register.ps1`. Reverse-drift audit (06:00 KST) reports any direct registration.
 
 ## 4. Stack
 
